@@ -1,0 +1,651 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+	<title>镇村预约响应智能公交系统</title>
+	<link rel="stylesheet" type="text/css" href="css/reset.css" />
+	<link rel="stylesheet" type="text/css" href="css/scanboard.css" />
+	<link rel="stylesheet" type="text/css" href="css/animsition.css" />
+	<link rel="stylesheet" type="text/css" href="css/jquery.shCircleLoader.css" />
+	<!-- 下两个画时间轴所用 -->
+	<!-- <link href='https://fonts.googleapis.com/css?family=Titillium+Web:400,200,300,600,700' rel='stylesheet'
+		type='text/css'>
+	<link href="css/timeLine.css" rel="stylesheet"> -->
+	<script type="text/javascript" src="js/jquery.min.js"></script>
+	<script src="https://cdn.staticfile.org/jquery/2.0.2/jquery.min.js" type="text/javascript"></script>
+	<script src="https://static.runoob.com/assets/jquery/jquery.growl/javascripts/jquery.growl.js"
+		type="text/javascript"></script>
+	<link href="https://static.runoob.com/assets/jquery/jquery.growl/stylesheets/jquery.growl.css" rel="stylesheet"
+		type="text/css" />
+	<script type="text/javascript" src="js/jquery.shCircleLoader-min.js"></script>
+</head>
+
+<body>
+	<div id="loader"></div>
+	<script type="text/javascript">
+		$('#loader').shCircleLoader({ color: "#00deff" });
+	</script>
+	<div class="scanboardWp animsition">
+		<!--Top Start!-->
+		<div id="top">
+			<div class="wp clearfix">
+				<div class="left pageTit">
+					<a class="summaryBtn" href="javascript:;">数据汇总看板</a>
+				</div>
+				<div class="center topLogo">
+					<img src="images/111.png">
+				</div>
+				<div class="right topBar">
+					<div class="topTime">时间加载中...</div>
+					<div class="clearfix">
+						<a href="index.html" class="signOut fr">退出</a>
+						<div class="company fr">
+							<h3>石淙镇</h3>
+							<div class="dropdown">
+								<a href="">江宁</a>
+								<a href="">溧水</a>
+								<a href="">高淳</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!--Top End!-->
+
+		<!--Main Start!-->
+		<div id="main" class="wp clearfix">
+			<div class="left">
+				<!--左上 今日已完成订单数量-->
+				<div class="item waybill">
+					<div class="itemTit">
+						<span class="border-yellow">今日已完成订单数量</span>
+					</div>
+					<div class="itemCon itembg" id="totalOrderNum">
+						<div class="progress" progress="20%">
+							<h3 class="clearfix"><span>预约单</span><i>加载中...</i></h3>
+							<div class="progressBar">
+								<span></span>
+							</div>
+							<h4>0%</h4>
+						</div>
+						<div class="progress" progress="80%">
+							<h3 class="clearfix"><span>响应单</span><i>加载中...</i></h3>
+							<div class="progressBar">
+								<span></span>
+							</div>
+							<h4>0%</h4>
+						</div>
+					</div>
+				</div>
+
+				<!-- 左中 各行驶车辆下一站点-->
+				<div class="item">
+					<div class="itemTit">
+						<span class="border-green">各行驶车辆下一站点</span>
+					</div>
+					<div class="itemCon" id="busPassengersNum">
+						<ul class="listStyle1">
+							<li class="clearfix">
+								<span>编号</span>
+								<span>车上人数</span>
+								<span>下一站</span>
+								<span>下下站</span>
+							</li>
+							<li class="clearfix">
+								<span>S1</span>
+								<span><strong>0</strong>人</span>
+								<span>休息中...</span>
+								<span>休息中...</span>
+							</li>
+							<li class="clearfix">
+								<span>S2</span>
+								<span><strong>0</strong>人</span>
+								<span>休息中...</span>
+								<span>休息中...</span>
+							</li>
+							<li class="clearfix">
+								<span>S3</span>
+								<span><strong>0</strong>人</span>
+								<span>休息中...</span>
+								<span>休息中...</span>
+							</li>
+							<li class="clearfix">
+								<span>S4</span>
+								<span><strong>0</strong>人</span>
+								<span>休息中...</span>
+								<span>休息中...</span>
+							</li>
+							<li class="clearfix">
+								<span>S5</span>
+								<span><strong>0</strong>人</span>
+								<span>休息中...</span>
+								<span>休息中...</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+
+				<!--左下  各站点等待人数-->
+				<div class="item">
+					<div class="itemTit">
+						<span class="border-blue">各站点等待人数</span>
+					</div>
+					<div class="itemCon itembg" id="stopWaitingNum">
+						<ul class="listStyle">
+							<li class="clearfix">
+								<span>换乘中心：<strong>0</strong>人</span>
+								<span>镇西村：<strong>0</strong>人</span>
+								<span>石淙村：<strong>0</strong>人</span>
+								<span>姚家坝村：<strong>0</strong>人</span>
+								<span>银子桥村：<strong>0</strong>人</span>
+								<span>羊河坝村：<strong>0</strong>人</span>
+								<span>花园湾村：<strong>0</strong>人</span>
+								<span>南坝村：<strong>0</strong>人</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+
+			<div class="center">
+				<div class="centerWp">
+					<!--中间大地图-->
+					<div class="mapContainer">
+						<div class="btnLayer">
+							<div class="search">
+								<div class="searchInner">
+									<a href="javascript:;" class="searchBtn"><span class="icoSearch"></span></a>
+									<form class="searchForm">
+										<button class="icoSearch"></button>
+										<input type="text" name="" placeholder="请搜索车辆">
+									</form>
+								</div>
+							</div>
+							<a href="javascript:;" class="infoBtn"><span class="icoCar"></span></a>
+						</div>
+						<div id="myMap" class="item"></div>
+					</div>
+
+					<!--月订单量统计图-->
+					<!-- <div class="billChart">
+						<div class="itemTit">
+							<span class="border-blue">月订单量统计图<small>(2022年10月)</small></span>
+						</div>
+						<div id="myChart1"></div>
+					</div> -->
+				</div>
+			</div>
+
+			<div class="right">
+				<!--总计运单数-->
+				<div class="item total itembg">
+					<div class="itemTit">
+						<span class="border-yellow">总计运单数</span>
+					</div>
+					<div class="itemCon">
+						<div class="totalNum"><strong id="totalNum" total="36802">0</strong><span>单</span></div>
+					</div>
+				</div>
+
+				<!--基本信息-->
+				<div class="item basicInfo">
+					<div class="itemTit">
+						<span class="border-green">基本信息</span>
+					</div>
+					<div class="itemCon itembg">
+						<div class="infoPie">
+							<ul class="clearfix">
+								<li class="color-yellow">
+									<span class="border-yellow" id="indicator1">0</span>
+									<p>在驶车辆</p>
+								</li>
+								<li class="color-green">
+									<span class="border-green" id="indicator2" total="0">0</span>
+									<p>已完成订单数</p>
+								</li>
+								<li class="color-blue">
+									<span class="border-blue" id="indicator3" total="0">0</span>
+									<p>当前订单数</p>
+								</li>
+							</ul>
+							<div id="indicatorContainer"></div>
+						</div>
+					</div>
+				</div>
+
+				<!--右下角 订单状态-->
+				<div class="item billState">
+					<div class="itemTit">
+						<span class="border-green">订单状态</span>
+					</div>
+					<div class="itemCon">
+						<div class="StateBox">
+							<div class="StateTit">
+								<span>订单编号</span>
+								<span>上车站点</span>
+								<span>目的站点</span>
+								<span>分配车辆</span>
+							</div>
+							<div id="FontScroll">
+								<ul>
+									<li>
+										<div class="fontInner clearfix">
+											<span>加载中...</span>
+											<span>加载中...</span>
+											<span>加载中...</span>
+											<span>加载中...</span>
+										</div>
+									</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!--Main End!-->
+
+		<!-- Bottom Start! -->
+		<!-- <div id="bottom"> -->
+		<!-- 暂时替换为路线图 -->
+		<!-- <div>
+				<ul class="timelinee" id="timeline">
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 换乘中心 </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 南坝村 </h4>
+						</div>
+					</li>
+					<li class="li">
+						<div class="statuss">
+							<h4> 羊河坝村 </h4>
+						</div>
+					</li>
+					<li>
+						<div style="margin-left: 20px;margin-right: 20px;">
+							<h4> &nbsp; </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 换乘中心 </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 南坝村 </h4>
+						</div>
+					</li>
+					<li class="li">
+						<div class="statuss">
+							<h4> 羊河坝村 </h4>
+						</div>
+					</li>
+					<li>
+						<div style="margin-left: 20px;margin-right: 20px;">
+							<h4> &nbsp; </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 换乘中心 </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 南坝村 </h4>
+						</div>
+					</li>
+					<li class="li">
+						<div class="statuss">
+							<h4> 羊河坝村 </h4>
+						</div>
+					</li>
+					<li>
+						<div style="margin-left: 20px;margin-right: 20px;">
+							<h4> &nbsp; </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 换乘中心 </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 南坝村 </h4>
+						</div>
+					</li>
+					<li class="li">
+						<div class="statuss">
+							<h4> 羊河坝村 </h4>
+						</div>
+					</li>
+					<li>
+						<div style="margin-left: 20px;margin-right: 20px;">
+							<h4> &nbsp; </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 换乘中心 </h4>
+						</div>
+					</li>
+					<li class="li complete">
+						<div class="statuss">
+							<h4> 南坝村 </h4>
+						</div>
+					</li>
+					<li class="li">
+						<div class="statuss">
+							<h4> 羊河坝村 </h4>
+						</div>
+					</li>
+				</ul>
+			</div> -->
+		<!-- </div> -->
+		<!-- Bottom End! -->
+	</div>
+
+	<div class="filterbg"></div>
+	<div class="popup">
+		<a href="javascript:;" class="popupClose"></a>
+		<div class="summary">
+			<div class="summaryTop">
+				<div id="summaryPie1" class="summaryPie"></div>
+				<div id="summaryPie2" class="summaryPie"></div>
+				<div id="summaryPie3" class="summaryPie"></div>
+			</div>
+			<div class="summaryBottom">
+				<div class="summaryBar">
+					<div class="summaryTit">
+						<img src="images/tit1.png">
+					</div>
+					<div id="summaryBar"></div>
+				</div>
+
+				<div class="summaryLine">
+					<div class="summaryTit">
+						<img src="images/tit2.png">
+					</div>
+					<div id="summaryLine"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="carInfo">
+		<a href="javascript:;" class="carClose"></a>
+		<div class="infoBox">
+			<div class="infoTop">
+				<div class="infoTit">
+					<img src="images/tit3.png">
+				</div>
+			</div>
+			<div class="infoMain">
+				<div class="infoLeft fl">
+					<div class="topSearch">
+						<form>
+							<button></button>
+							<input type="text" name="" placeholder="请输入车牌号搜索">
+						</form>
+					</div>
+					<div class="carState">
+						<h3>
+							<span class="fl">车牌号码</span>
+							<span class="fr">状态</span>
+						</h3>
+						<ul class="stateUl">
+							<li>
+								<p>浙E AAAAA</p>
+								<span class="work">工作</span>
+							</li>
+							<li>
+								<p>浙E BBBBB</p>
+								<span class="nowork">休息</span>
+							</li>
+							<li>
+								<p>浙E CCCCC</p>
+								<span class="work">工作</span>
+							</li>
+							<li>
+								<p>浙E DDDDD</p>
+								<span class="nowork">休息</span>
+							</li>
+							<li>
+								<p>浙E EEEEE</p>
+								<span class="nowork">休息</span>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<div class="infoRight fr">
+					<div class="rightWp">
+						<div class="carIntro">
+							<div class="introBox fl">
+								<div class="carImg fl">
+									<img src="images/busImg.png">
+								</div>
+								<div class="carText fl clearfix">
+									<p>车辆类型：公交车</p>
+									<p>本周工作时长：338.5小时</p>
+									<p>车牌号码：浙E AAAAA</p>
+									<p>统计时段：2022-1-1至今</p>
+									<p>限载人数：15人</p>
+									<p>当前状态：<span class="color-green">工作</span></p>
+								</div>
+							</div>
+							<div class="driver fr">
+								<div class="photo">
+									<img src="images/photo.jpg">
+								</div>
+								<p>司机：白杨</p>
+							</div>
+						</div>
+						<div class="timetable">
+							<div class="topTool">
+								<div class="tableExplain fl">
+									<div class="itemExplain fl">
+										<span class="bg-green"></span>
+										<p>司机工作时间</p>
+									</div>
+									<div class="itemExplain fl">
+										<span class="bg-blue"></span>
+										<p>标准白晚班时间</p>
+									</div>
+								</div>
+								<div class="topBtns fr">
+									<a href="javascript:;" class="prevWeek">上一周</a>
+									<a href="javascript:;" class="nextWeek">下一周</a>
+								</div>
+							</div>
+							<div class="tiemWp">
+								<div class="timeInner">
+									<div class="weekList">
+										<div class="weekItem">
+											<div class="space1"></div>
+											<p>星期一</p>
+										</div>
+										<div class="weekItem">
+											<div class="space1"></div>
+											<p>星期二</p>
+										</div>
+										<div class="weekItem">
+											<div class="space1"></div>
+											<p>星期三</p>
+										</div>
+										<div class="weekItem">
+											<div class="space1"></div>
+											<p>星期四</p>
+										</div>
+										<div class="weekItem">
+											<div class="space1"></div>
+											<p>星期五</p>
+										</div>
+										<div class="weekItem">
+											<div class="space1"></div>
+											<p>星期六</p>
+										</div>
+										<div class="weekItem">
+											<div class="space1"></div>
+											<p>星期天</p>
+										</div>
+									</div>
+									<div class="timeBox">
+										<div class="dataContainer">
+											<div class="dataBox">
+												<div class="space1"></div>
+												<div class="workTime"></div>
+												<div class="space2"></div>
+												<div class="standard"></div>
+												<div class="space3"></div>
+											</div>
+											<div class="dataBox">
+												<div class="space1"></div>
+												<div class="workTime"></div>
+												<div class="space2"></div>
+												<div class="standard"></div>
+												<div class="space3"></div>
+											</div>
+											<div class="dataBox">
+												<div class="space1"></div>
+												<div class="workTime"></div>
+												<div class="space2"></div>
+												<div class="standard"></div>
+												<div class="space3"></div>
+											</div>
+											<div class="dataBox">
+												<div class="space1"></div>
+												<div class="workTime"></div>
+												<div class="space2"></div>
+												<div class="standard"></div>
+												<div class="space3"></div>
+											</div>
+											<div class="dataBox">
+												<div class="space1"></div>
+												<div class="workTime"></div>
+												<div class="space2"></div>
+												<div class="standard"></div>
+												<div class="space3"></div>
+											</div>
+											<div class="dataBox">
+												<div class="space1"></div>
+												<div class="workTime"></div>
+												<div class="space2"></div>
+												<div class="standard"></div>
+												<div class="space3"></div>
+											</div>
+											<div class="dataBox">
+												<div class="space1"></div>
+												<div class="workTime"></div>
+												<div class="space2"></div>
+												<div class="standard"></div>
+												<div class="space3"></div>
+											</div>
+										</div>
+										<div class="timeLine line1"><span>0:00</span></div>
+										<div class="timeLine line2"><span>3:00</span></div>
+										<div class="timeLine line3"><span>6:00</span></div>
+										<div class="timeLine line4"><span>9:00</span></div>
+										<div class="timeLine line5"><span>12:00</span></div>
+										<div class="timeLine line6"><span>15:00</span></div>
+										<div class="timeLine line7"><span>18:00</span></div>
+										<div class="timeLine line8"><span>21:00</span></div>
+										<div class="timeLine line9"><span>24:00</span></div>
+									</div>
+								</div>
+								<div class="totalTable">
+									<div class="totalTit">
+										<span>总用时/天</span>
+										<span>总单数/天</span>
+									</div>
+									<div class="totalData">
+										<div class="totalItem">
+											<div class="space1"></div>
+											<div class="tatleWp">
+												<span>0.00</span>
+												<span>0</span>
+											</div>
+											<div class="totalBar"></div>
+										</div>
+										<div class="totalItem">
+											<div class="space1"></div>
+											<div class="tatleWp">
+												<span>0.00</span>
+												<span>0</span>
+											</div>
+											<div class="totalBar"></div>
+										</div>
+										<div class="totalItem">
+											<div class="space1"></div>
+											<div class="tatleWp">
+												<span>0.00</span>
+												<span>0</span>
+											</div>
+											<div class="totalBar"></div>
+										</div>
+										<div class="totalItem">
+											<div class="space1"></div>
+											<div class="tatleWp">
+												<span>0.00</span>
+												<span>0</span>
+											</div>
+											<div class="totalBar"></div>
+										</div>
+										<div class="totalItem">
+											<div class="space1"></div>
+											<div class="tatleWp">
+												<span>0.00</span>
+												<span>0</span>
+											</div>
+											<div class="totalBar"></div>
+										</div>
+										<div class="totalItem">
+											<div class="space1"></div>
+											<div class="tatleWp">
+												<span>0.00</span>
+												<span>0</span>
+											</div>
+											<div class="totalBar"></div>
+										</div>
+										<div class="totalItem">
+											<div class="space1"></div>
+											<div class="tatleWp">
+												<span>0.00</span>
+												<span>0</span>
+											</div>
+											<div class="totalBar"></div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<canvas id="canvas" style="position: absolute;top: 0;left: 0;"></canvas>
+</body>
+<script type="text/javascript" src="js/bg.js"></script>
+<script type="text/javascript" src="js/fontscroll.js"></script>
+<script type="text/javascript" src="js/jquery.animsition.js"></script>
+<script type="text/javascript" src="js/jquery.nicescroll.js"></script>
+<script type="text/javascript" src="js/echarts.min.js"></script>
+<script>
+	window._AMapSecurityConfig = {
+		securityJsCode: "73ac82c9f6bd1247e11059d5cec70127",
+	};
+</script>
+<script src="https://webapi.amap.com/loader.js"></script>
+<script type="text/javascript" src="js/scanboard.js"></script>
+<!-- <script type="text/javascript" src="http://webapi.amap.com/maps?v=1.4.3&key=1efbbfb20e6ada2251a3d62dd65f7bc0"></script> -->
+
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟添加订单</title>
+    <link rel="stylesheet" type="text/css" href="css/jquery.shCircleLoader.css" />
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/jquery.shCircleLoader-min.js"></script>
+</head>
+
+<body>
+    <select id="sel_on">
+        <option value="stop0">换乘中心</option>
+        <option value="stop1">镇西村</option>
+        <option value="stop2">石淙村</option>
+        <option value="stop3">姚家坝村</option>
+        <option value="stop4">银子桥村</option>
+        <option value="stop5">羊河坝村</option>
+        <option value="stop6">花园湾村</option>
+        <option value="stop7">南坝村</option>
+    </select>
+    <select id="sel_off">
+        <option value="stop0">换乘中心</option>
+        <option value="stop1">镇西村</option>
+        <option value="stop2">石淙村</option>
+        <option value="stop3">姚家坝村</option>
+        <option value="stop4">银子桥村</option>
+        <option value="stop5">羊河坝村</option>
+        <option value="stop6">花园湾村</option>
+        <option value="stop7">南坝村</option>
+    </select>
+    <select id="num">
+        <option value="num1">1</option>
+        <option value="num2">2</option>
+        <option value="num3">3</option>
+        <option value="num4">4</option>
+        <option value="num5">5</option>
+    </select>
+    <button onclick="addOrder()">添加订单</button>
+    <script>
+        // 添加订单，向服务器发送 乘客上车站点、目的站点
+        // 服务器返回 订单编号、上车站点、目的站点、匹配车辆
+        // 但是此处收到信息影响不到大屏，让大屏一直监视后端某个接口，
+        //     从服务器拉取订单数据
+        // 影响大屏 右下角、左下角、右中当前订单数
+        function addOrder() {
+            window.localStorage.setItem('addOrder', "");
+            window.localStorage.setItem('addOrder', $("#sel_on option:selected").index());
+            window.localStorage.setItem('stop_on', $("#sel_on option:selected").index());
+            window.localStorage.setItem('stop_off', $("#sel_off option:selected").index());
+            window.localStorage.setItem('passengers', $('#num option:selected').text());
+        }
+
+    </script>
+</body>
+
+</html>

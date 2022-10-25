@@ -1,0 +1,60 @@
+ .timelinee {
+     display: flex;
+     /* justify-content: center; */
+     list-style-type: none;
+     padding-top: 30px;
+     margin-left: 10%;
+     margin-right: 10%;
+     /* width: 20%; */
+ }
+
+ .timelinee .li {
+     transition: all 200ms ease-in;
+ }
+
+ .timelinee .statuss {
+     padding: 0px 20px;
+     /* display: flex;
+     justify-content: center; */
+     border-top: 2px solid #D6DCE0;
+     position: relative;
+     transition: all 200ms ease-in;
+ }
+
+ .timelinee .statuss h4 {
+     margin-left: 10px;
+     margin-top: 10px;
+     font-weight: 600;
+     color: aliceblue;
+ }
+
+ .timelinee .statuss:before {
+     content: "S1";
+     /* align-content: center;
+     justify-content: center;
+     place-content: center; */
+     color: black;
+     width: 25px;
+     height: 25px;
+     background-color: white;
+     border-radius: 25px;
+     border: 1px solid #ddd;
+     position: absolute;
+     top: -15px;
+     left: 42%;
+     transition: all 200ms ease-in;
+ }
+
+ .timelinee .li.complete .statuss {
+     border-top: 2px solid #22b9ff;
+ }
+
+ .timelinee .li.complete .statuss:before {
+     background-color: #22b9ff;
+     border: none;
+     transition: all 200ms ease-in;
+ }
+
+ .timelinee .li.complete .statuss h4 {
+     color: #22b9ff;
+ }
