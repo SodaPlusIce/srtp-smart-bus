@@ -123,6 +123,21 @@ $(function () {
 				offset: new AMap.Pixel(-14, -16.5)
 			})
 		}
+		// 8个站点的marker初始化
+		var stopMarker = [];
+		var carAtStopInfo = ["", "", "", "", "", "", "", ""];// 车到站弹出的信息
+		// 遍历所有站点，设置marker及对应content
+		for (var i = 0; i < 8; i++) {
+			stopMarker[i] = new AMap.Marker({
+				position: stopLngLat[i],
+				map: myMap,
+				label: {
+					direction: "top",
+					content: stopName[i]
+				},
+			});
+			stopMarker[i].content = carAtStopInfo[i];
+		}
 		// 各站点闪烁圆圈的初始化
 		var stopCircle = [];
 		for (var i = 0; i < 8; i++) {
@@ -139,6 +154,16 @@ $(function () {
 		var seqs = [];//存放从后端拉来的数据  预约单每辆车的路线
 		var stops;//存放从后端拉来的数据  预约单每个站点的人数
 		var lineArr = [];//存放路径,lineArr[0]代表第一辆车的路径集合
+		var ifHandle = true;// ifHandle表示是否处理了响应
+		// 互斥锁机制，避免重新规划线路后要等待下车却没有的问题（开启了新线程，之前的动画并没有取消，所以会执行两次，导致setTimeout不起作用）
+		var waiting = [false, false, false, false, false];
+		// 设置信息窗体样式（车辆到站后显示的内容）
+		// var infoWindow = [];
+		// for (var i = 0; i < 8; i++) {
+		// 	infoWindow[i] = new AMap.InfoWindow({
+		// 		offset: new AMap.Pixel(16, -36)
+		// 	});
+		// }
 		// ----------------上面是数据，下面是函数---------------分隔符-----------------
 		function deepClone(initalObj, finalObj) {
 			var obj = finalObj || {};
@@ -178,6 +203,7 @@ $(function () {
 			lineArr[lineArr_index] = [start];
 			var driving = new AMap.Driving({
 				map: myMap,//不显示规划路径
+				showTraffic: false,
 			});
 			var middlePoints = [];
 			for (var i = 0; i < middle.length; i++) {
@@ -216,36 +242,11 @@ $(function () {
 				}
 			);
 		}
-		// 遍历所有站点，设置marker及对应content
-		for (var i = 0; i < stopLngLat.length; i += 1) {
-			var marker = new AMap.Marker({
-				position: stopLngLat[i],
-				map: myMap,
-				label: {
-					direction: "top",
-					content: stopName[i]
-				},
-				// icon: 'images/s_ico4.png',
-			});
-			marker.content = '<p>ZC1712120023</p>' +
-				'<p>起点：配件A厂</p>' +
-				'<p>终点：美的冰箱公司</p>' +
-				'<p>满载率：95%</p>' +
-				'<p>已使用时间：2小时15分</p>';
-			marker.on('click', markerClick);
-			//map.setFitView(); 
-		}
-		// 设置信息窗体样式（点击小车显示的内容）
-		var infoWindow = new AMap.InfoWindow({
-			offset: new AMap.Pixel(16, -36)
-		});
-		function markerClick(e) {
-			infoWindow.setContent(e.target.content);
-			infoWindow.open(myMap, e.target.getPosition());
-		}
-		myMap.on('click', function () {
-			infoWindow.close();
-		});
+		// 点击车辆marker后显示infowindow内容（实际是车辆到站后弹出）
+		// function markerClick(e, index) {
+		// 	infoWindow[index].setContent(carAtStopInfo[index]);
+		// 	infoWindow[index].open(myMap, e.target.getPosition());
+		// }
 		// 涉及动画的部分   start,end是id，middle是id的数组，lineArr_index代表第几辆车，seqs表示路径（用于和新路径比较）
 		function navigate(start, end, middle, lineArr_index, seqs) {
 			if (middle.length == 0) {// [0,7]这种情况
@@ -309,6 +310,8 @@ $(function () {
 								// 1)判断是否发生修改，没有就不用管，有的话就重新navigate
 								// 2)更新左中车辆下一站的显示和最下方的路线显示
 								var sumNum = 0;
+								var on_num = 0;
+								var off_num = 0;
 								$.ajax({
 									url: "http://127.0.0.1:5000/carAtStop",
 									async: false,
@@ -319,27 +322,29 @@ $(function () {
 									dataType: "JSON",
 									success: function (res) {
 										sumNum = parseInt(res[0]);
+										on_num = parseInt(res[2]);
+										off_num = parseInt(res[3]);
 										// 该辆车的路径发生了改变
 										newPath = JSON.parse(res[1]);
-										if (newPath.toString() !== seqs.toString()) {
-											// 做出路线改变的提醒
-											$.growl.notice({
-												title: "路线变更提醒",
-												message: "新增响应，S" + (lineArr_index + 1) + "号车路线已发生改变!"
-											});
-											// 车辆暂停动画
-											carMarker[lineArr_index].stopMove();
-											// 重新navigate...
-											navigate(newPath[0], newPath[newPath.length - 1], newPath.slice(1, newPath.length - 1), lineArr_index, newPath);
-											return;
+										if (newPath.toString() !== seqs.toString() && !ifHandle) {
+											console.log("S" + (lineArr_index + 1) + "车进入路径变化函数执行范围！");
+											handleResponse(sumNum, newPath, lineArr_index);
 										}
-										// 更新左中车辆下一站的显示和最下方的路线显示...
-										// 这一步目测应该是不用做的
 									}
 								});
-								setTimeout(function () {
-									carMarker[lineArr_index].resumeMove();
-								}, 1000 * sumNum);//每个人按1s计算
+								if (!waiting[lineArr_index]) {
+									waiting[lineArr_index] = true;
+									// 车到站，弹出上下车信息
+									$.growl.notice({
+										title: "S" + (lineArr_index + 1) + "车到达 " + stopName[midIds[i]] + " 站",
+										message: "上车" + on_num + "人，下车" + off_num + "人，上下车中......"
+									});
+									console.log("S" + (lineArr_index + 1) + "车，上下乘客共" + sumNum + "人，上下车中......");
+									setTimeout(function () {
+										carMarker[lineArr_index].resumeMove();
+										waiting[lineArr_index] = false;
+									}, 1000 * sumNum);//每个人按1s计算
+								}
 							}
 						}
 						// 车到终点
@@ -350,6 +355,9 @@ $(function () {
 							e.pos.lat <= end[1] + 0.0005 &&
 							e.pos.lat >= end[1] - 0.0005
 						) {
+							var sumNum = 0;
+							var on_num = 0;
+							var off_num = 0;
 							//终止动画
 							carMarker[lineArr_index].stopMove();
 							//通知后端
@@ -362,26 +370,26 @@ $(function () {
 								},
 								dataType: "JSON",
 								success: function (res) {
+									sumNum = parseInt(res[0]);
+									on_num = parseInt(res[2]);
+									off_num = parseInt(res[3]);
 									// 该辆车的路径发生了改变
 									newPath = JSON.parse(res[1]);
-									if (newPath.toString() !== seqs.toString()) {
-										// 做出路线改变的提醒
-										$.growl.notice({
-											title: "路线变更提醒",
-											message: "新增响应，S" + (lineArr_index + 1) + "号车路线已发生改变!"
-										});
-										// 车辆暂停动画
-										carMarker[lineArr_index].stopMove();
-										// 重新navigate...
-										navigate(newPath[0], newPath[newPath.length - 1], newPath.slice(1, newPath.length - 1), lineArr_index, newPath);
-										return;
+									if (newPath.toString() !== seqs.toString() && !ifHandle) {
+										handleResponse(sumNum, newPath, lineArr_index);
 									}
 								}
 							});
+							$.growl.notice({
+								title: "S" + (lineArr_index + 1) + "车到达 " + stopName[endId] + " 站",
+								message: "上车" + on_num + "人，下车" + off_num + "人，上下车中......"
+							});
+							console.log("S" + (lineArr_index + 1) + "车，上下乘客共" + sumNum + "人，上下车中......");
 						}
-					})
+					});
 				}, 1000);
 			});
+
 		}
 		// 让第index(从0开始)辆车跑起来,路线是seqs
 		function startDriving(index, seqss) {
@@ -390,6 +398,23 @@ $(function () {
 			// 计算路径并开始动画
 			calLineArr(seqss[0], seqss[seqss.length - 1], seqss.slice(1, seqss.length - 1), index);
 			navigate(seqss[0], seqss[seqss.length - 1], seqss.slice(1, seqss.length - 1), index, seqss);
+		}
+		// 处理新增的响应
+		function handleResponse(sumNum, newPath, lineArr_index) {
+			ifHandle = true;
+			// 车辆暂停动画
+			carMarker[lineArr_index].stopMove();
+			// 重新动画前完成上下车的等待时间
+			setTimeout(function () {
+				// 做出路线改变的提醒
+				$.growl.warning({
+					title: "路线变更提醒",
+					message: "新增响应，S" + (lineArr_index + 1) + "号车路线已发生改变!"
+				});
+				// 重新navigate...
+				calLineArr(newPath[0], newPath[newPath.length - 1], newPath.slice(1, newPath.length - 1), lineArr_index);
+				navigate(newPath[0], newPath[newPath.length - 1], newPath.slice(1, newPath.length - 1), lineArr_index, newPath);
+			}, 1000 * sumNum);
 		}
 		//尝试5辆车一起跑，just run it!
 		function test5cars() {
@@ -421,18 +446,44 @@ $(function () {
 						onBusPass_nums[cnt] = ($(this).text());
 						cnt += 1;
 					})
+					var nextStopIds = [];
+					cnt = 0;
+					$('#busPassengersNum ul li:nth-child(n+2)').each(function () {
+						nextStopIds[cnt] = stopName.findIndex((name) => {
+							return name == $(this).children('span:nth-child(3)').text()
+						})
+						cnt += 1;
+					})
+					nextStopIds = nextStopIds.filter((id) => {
+						return id != -1;
+					})
 					$.ajax({
 						url: "http://127.0.0.1:5000/addOrder",
 						data: {
 							stop_on: localStorage.getItem('stop_on'),
 							stop_off: localStorage.getItem('stop_off'),
 							passengers: localStorage.getItem('passengers'),
-							onBusPass_num: onBusPass_nums.toString()
+							onBusPass_num: onBusPass_nums.toString(),
+							nextStopIds: nextStopIds.toString()
 						},
 						dataType: "JSON",
 						async: false,
 						success: function (res) {
-
+							var nowDrivingCarNum = $('.infoPie ul #indicator1').text();
+							if (res[0] + 1 > nowDrivingCarNum) {//新派一辆车
+								// 做出路线改变的提醒
+								$.growl.warning({
+									title: "新派车辆提醒",
+									message: "新增响应，S" + (res[0] + 1) + "号车已派出运营!"
+								});
+								startDriving(res[0], res[1]);
+								$('.infoPie ul #indicator1').text(res[0] + 1);
+								ifHandle = true;
+							}
+							ifHandle = false;
+							// 拿到后端返回的res，通过对比res[0]和现在行驶的车辆数，判断是否是新派一辆车的情况
+							// 如果是，就startDriving(res[0],res[1])
+							// 不是就不用管，行驶中的车辆carAtStop后会判断与库里的路线一直不一致，不一致就又重新跑了
 						}
 					});
 				}
@@ -563,9 +614,10 @@ $(function () {
 				})
 			}
 		});
-		// 同时修改左上历史订单数和右上总订单数
+		// 同时修改左上历史订单数
 		var reserved_num = 0;
 		var response_num = 0;
+		var todayCompletedOrderNum = 0;
 		$.ajax({
 			url: "http://127.0.0.1:5000/getHistoryOrder",
 			async: false,
@@ -573,10 +625,9 @@ $(function () {
 			success: function (res) {
 				reserved_num = res[0];
 				response_num = res[1];
+				todayCompletedOrderNum = res[2];
 			}
 		});
-		$('.infoPie ul #indicator2').text(reserved_num + response_num);
-		// var reserved_percent = Math.round(reserved_num / (reserved_num + response_num) * 10000) / 100 + "%";
 		var reserved_percent = Math.round(reserved_num / (reserved_num + response_num) * 100) + "%";
 		var response_percent = Math.round(response_num / (reserved_num + response_num) * 100) + "%";
 		$('#totalOrderNum h4').eq(0).text(reserved_percent);
@@ -587,6 +638,10 @@ $(function () {
 			.animate({ width: response_percent }, parseInt(response_percent) * 50);
 		$('#totalOrderNum i').eq(0).text(reserved_num + "单");
 		$('#totalOrderNum i').eq(1).text(response_num + "单");
+		// 修改右上总订单数
+		$('#totalNum').text(reserved_num + response_num);
+		// 修改右中当前已完成订单数
+		$('.infoPie ul #indicator2').text(todayCompletedOrderNum);
 	}, 5000);
 
 	// 订单状态文字滚动

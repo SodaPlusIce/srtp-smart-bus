@@ -9,10 +9,6 @@
 	<link rel="stylesheet" type="text/css" href="css/scanboard.css" />
 	<link rel="stylesheet" type="text/css" href="css/animsition.css" />
 	<link rel="stylesheet" type="text/css" href="css/jquery.shCircleLoader.css" />
-	<!-- 下两个画时间轴所用 -->
-	<!-- <link href='https://fonts.googleapis.com/css?family=Titillium+Web:400,200,300,600,700' rel='stylesheet'
-		type='text/css'>
-	<link href="css/timeLine.css" rel="stylesheet"> -->
 	<script type="text/javascript" src="js/jquery.min.js"></script>
 	<script src="https://cdn.staticfile.org/jquery/2.0.2/jquery.min.js" type="text/javascript"></script>
 	<script src="https://static.runoob.com/assets/jquery/jquery.growl/javascripts/jquery.growl.js"
@@ -61,17 +57,17 @@
 				<!--左上 今日已完成订单数量-->
 				<div class="item waybill">
 					<div class="itemTit">
-						<span class="border-yellow">今日已完成订单数量</span>
+						<span class="border-yellow">历史订单数量</span>
 					</div>
 					<div class="itemCon itembg" id="totalOrderNum">
-						<div class="progress" progress="20%">
+						<div class="progress" progress="40%">
 							<h3 class="clearfix"><span>预约单</span><i>加载中...</i></h3>
 							<div class="progressBar">
 								<span></span>
 							</div>
 							<h4>0%</h4>
 						</div>
-						<div class="progress" progress="80%">
+						<div class="progress" progress="60%">
 							<h3 class="clearfix"><span>响应单</span><i>加载中...</i></h3>
 							<div class="progressBar">
 								<span></span>
@@ -84,7 +80,7 @@
 				<!-- 左中 各行驶车辆下一站点-->
 				<div class="item">
 					<div class="itemTit">
-						<span class="border-green">各行驶车辆下一站点</span>
+						<span class="border-green">各行驶车辆信息</span>
 					</div>
 					<div class="itemCon" id="busPassengersNum">
 						<ul class="listStyle1">
@@ -180,20 +176,20 @@
 			</div>
 
 			<div class="right">
-				<!--总计运单数-->
+				<!--右上 总计运单数-->
 				<div class="item total itembg">
 					<div class="itemTit">
 						<span class="border-yellow">总计运单数</span>
 					</div>
 					<div class="itemCon">
-						<div class="totalNum"><strong id="totalNum" total="36802">0</strong><span>单</span></div>
+						<div class="totalNum"><strong id="totalNum" total="0">0</strong><span>单</span></div>
 					</div>
 				</div>
 
-				<!--基本信息-->
+				<!--当日基本信息-->
 				<div class="item basicInfo">
 					<div class="itemTit">
-						<span class="border-green">基本信息</span>
+						<span class="border-green">当日基本信息</span>
 					</div>
 					<div class="itemCon itembg">
 						<div class="infoPie">

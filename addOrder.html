@@ -47,11 +47,12 @@
         //     从服务器拉取订单数据
         // 影响大屏 右下角、左下角、右中当前订单数
         function addOrder() {
-            window.localStorage.setItem('addOrder', "");
-            window.localStorage.setItem('addOrder', $("#sel_on option:selected").index());
+            // 这三个数据的变化放在前面，防止addOrder发生变化后那边立马得到的数据是之前的数据的bug
             window.localStorage.setItem('stop_on', $("#sel_on option:selected").index());
             window.localStorage.setItem('stop_off', $("#sel_off option:selected").index());
             window.localStorage.setItem('passengers', $('#num option:selected').text());
+            window.localStorage.setItem('addOrder', "");
+            window.localStorage.setItem('addOrder', $("#sel_on option:selected").index());
         }
 
     </script>
