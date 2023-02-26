@@ -310,6 +310,7 @@ def carAtStop():
     stop_id = request.values.get('stop_id')
 
     car_ids = car_id
+    stop_ids=stop_id
     car_id = "S" + str(int(car_id) + 1)
     stop_id = stopName[int(stop_id)]
     # 根据order_info计算下车几个人（根据分配车辆号和目的站点）,然后将订单改为已完成
@@ -330,8 +331,8 @@ def carAtStop():
     db.commit()
     former_num=redis_conn.get("P"+str(int(car_ids) + 1)).decode()
     redis_conn.set("P"+str(int(car_ids) + 1),str(int(former_num)-off_num+on_num))
-    former_num = redis_conn.get("T" + stop_id).decode()
-    redis_conn.set("T" + stop_id, str(int(former_num)-on_num))
+    former_num = redis_conn.get("T" + stop_ids).decode()
+    redis_conn.set("T" + stop_ids, str(int(former_num)-on_num))
     nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     sql = "UPDATE order_info SET status=1,onbus_time={0}  WHERE status=0 AND stop_on='{1}' AND allo_bus='{2}';".format(nowtime,stop_id,
                                                                                                           car_id)
