@@ -327,13 +327,17 @@ def carAtStop():
     data = cursor.fetchall()
     on_num = data[0][0]
     db.commit()
-    sql = "UPDATE order_info SET status=1  WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id,
+    nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    sql = "UPDATE order_info SET status=1,onbus_time={0}  WHERE status=0 AND stop_on='{1}' AND allo_bus='{2}';".format(nowtime,stop_id,
                                                                                                           car_id)
     cursor.execute(sql)
     db.commit()
+
     # 查找path表返回路径
     path_table=redis_conn.get(car_id).decode()
-
+    path_table=path_table[4:]
+    path_table='['+path_table
+    redis_conn.set(car_id,path_table)
     res = [str(on_num + off_num), path_table,on_num,off_num]
 
     return make_response(json.dumps(res))
