@@ -335,7 +335,7 @@ def carAtStop():
     db.commit()
 
     # 根据order_info计算上车几个人（根据分配车辆号和上车站点）
-    sql = "SELECT sum(passenger) FROM order_info WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
+    sql = "SELECT sum(passengers) FROM order_info WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
     on_num = data[0][0]
