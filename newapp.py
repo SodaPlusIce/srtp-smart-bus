@@ -353,6 +353,8 @@ def carAtStop():
         former_num = redis_conn.get("P" + str(int(car_ids) + 1)).decode()
         redis_conn.set("P" + str(int(car_ids) + 1), str(int(former_num) - off_num))
     elif on_num:
+        former_num = redis_conn.get("P" + str(int(car_ids) + 1)).decode()
+        redis_conn.set("P" + str(int(car_ids) + 1), str(int(former_num) + on_num))
         former_num = redis_conn.get("T" + stop_ids).decode()
         redis_conn.set("T" + stop_ids, str(int(former_num) - on_num))
     nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
