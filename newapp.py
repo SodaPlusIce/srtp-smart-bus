@@ -12,7 +12,7 @@ import redis
 
 app = Flask(__name__)
 CORS(app, resources=r'/*')  # 注册CORS, "/*" 允许访问所有api
-redis_pool = redis.ConnectionPool(host='192.168.203.129', password='000415', port=6379, db=1)
+redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379, db=1)
 redis_conn = redis.Redis(connection_pool=redis_pool)
 # 打开数据库连接
 db = pymysql.connect(host='localhost',
@@ -363,14 +363,14 @@ def carAtStop():
     redis_conn.set(car_id, path_table)
 
     if off_num and on_num:
-        res = [str(on_num + off_num), path_table, on_num, off_num]
+        res = [str(on_num + off_num), path_table, int(on_num), int(off_num)]
     elif off_num:
-        res=[str(off_num),path_table,0,off_num]
+        res=[str(off_num),path_table,0,int(off_num)]
     elif on_num:
-        res=[str(on_num),path_table,on_num,0]
+        res=[str(on_num),path_table,int(on_num),0]
     else:
         res=["0",path_table,0,0]
-
+    print(res)
     return make_response(json.dumps(res))
 
 
