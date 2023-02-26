@@ -329,9 +329,9 @@ def carAtStop():
     on_num = data[0][0]
     db.commit()
     former_num=redis_conn.get("P"+str(int(car_ids) + 1)).decode()
-    redis_conn.set("P"+str(int(car_ids) + 1),former_num-off_num+on_num)
+    redis_conn.set("P"+str(int(car_ids) + 1),str(int(former_num)-off_num+on_num))
     former_num = redis_conn.get("T" + stop_id).decode()
-    redis_conn.set("T" + stop_id, former_num-on_num)
+    redis_conn.set("T" + stop_id, str(int(former_num)-on_num))
     nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     sql = "UPDATE order_info SET status=1,onbus_time={0}  WHERE status=0 AND stop_on='{1}' AND allo_bus='{2}';".format(nowtime,stop_id,
                                                                                                           car_id)
