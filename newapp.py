@@ -9,10 +9,11 @@ import random
 import itertools
 import time
 import redis
+
 app = Flask(__name__)
 CORS(app, resources=r'/*')  # 注册CORS, "/*" 允许访问所有api
-redis_pool = redis.ConnectionPool(host='192.168.203.129', port= 6379, password= '000415', db=1)
-redis_conn = redis.Redis(connection_pool= redis_pool)
+redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379, db=0)
+redis_conn = redis.Redis(connection_pool=redis_pool)
 # 打开数据库连接
 db = pymysql.connect(host='localhost',
                      user='root',
@@ -132,7 +133,10 @@ def pailie(dis, stops, stop_num, bus, passengers):
 
 
 def getNewPathAfterResponse(stop_on, stop_off, passengers, onBusPass_nums, paths, nextStopIds):
-    nextStopIds = list(int(char) for char in nextStopIds.split(','))
+    # print(type(nextStopIds))
+    # print(nextStopIds)
+    # print(nextStopIds[0])
+    # nextStopIds = list(int(char) for char in nextStopIds.split(','))
 
     res = [len(paths), [0, stop_on, 0]]  # 发新车
 
@@ -162,6 +166,7 @@ def getNewPathAfterResponse(stop_on, stop_off, passengers, onBusPass_nums, paths
 
     return res
 
+
 # point
 
 # 预约场景描述：现在的预约模拟是所有乘客在换乘中心，要前往各个村，然后算法分配车辆，然后开始跑，然后订单陆续完成
@@ -187,9 +192,9 @@ def getSequences():
         for path_stop in single_seq:
             if path_stop != 0:
                 passes = pas[path_stop - 1]
-                nowtime=datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-                date=time.strftime('%Y%m%d',time.localtime())
-                yesterday=(datetime.datetime.now()+datetime.timedelta(days=-1)).strftime("%Y%m%d%H%M%S")
+                nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+                date = time.strftime('%Y%m%d', time.localtime())
+                yesterday = (datetime.datetime.now() + datetime.timedelta(days=-1)).strftime("%Y%m%d%H%M%S")
                 order_id = "YS" + str(curr_car) + str(passes) + nowtime + str(index)
                 index += 1
                 # 预约场景描述：现在的预约模拟是所有乘客在换乘中心，要前往各个村，然后算法分配车辆，然后开始跑，然后订单陆续完成
@@ -199,9 +204,9 @@ def getSequences():
                 # 预约场景描述：现在的预约模拟是早上所有预约的乘客在各个站点，要前往换乘中心，然后算法分配车辆，然后跑，跑的中间可以响应几单加进来
                 # 最后回到换乘中心0，所有订单完成
                 sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
-                          "allo_bus,expected_on,created_time,onbus_time)" \
+                      "allo_bus,expected_on,created_time,onbus_time)" \
                       " VALUES ('{0}','0','{1}','{2}','换乘中心','123456789','0','{3}','{4}','0730','{5}','');" \
-                    .format(order_id, date,stopName[path_stop], passes,"S" + str(curr_car),yesterday)
+                    .format(order_id, date, stopName[path_stop], passes, "S" + str(curr_car), yesterday)
                 cursor.execute(sql)
                 db.commit()
         curr_car += 1
@@ -237,12 +242,11 @@ def getSequences():
     redis_conn.set("T7", pas[6])
 
     # 车上人数初始化
-    redis_conn.set("P1",0)
+    redis_conn.set("P1", 0)
     redis_conn.set("P2", 0)
     redis_conn.set("P3", 0)
     redis_conn.set("P4", 0)
     redis_conn.set("P5", 0)
-
 
     print("分配路线：", min_stops)
     print("各站点人数：", pas)
@@ -250,6 +254,8 @@ def getSequences():
         'seqs': min_stops, 'passenger_num': pas
     }
     return make_response(data)
+
+
 @app.route("/getOrderInfo")  # 获取订单信息，返回order_info表中内容
 def getOrderInfo():
     sql = "SELECT * FROM order_info;"
@@ -257,28 +263,31 @@ def getOrderInfo():
     data = cursor.fetchall()
     db.commit()
     return make_response(json.dumps(data))
+
+
 @app.route("/getStopWaitingNum")  # 获取每个站点的等待人数（ifOnBus为0）和车上人数（ifOnBus为1），返回一个长度为8的数组
 def getStopWaitingNum():
-    stopNum=[]
-    busPassengersNum=[]
+    stopNum = []
+    busPassengersNum = []
 
     # 获取等待人数
-    for i in range(0,8):
-        stopIndex="T"+str(i)
-        stop_num=redis_conn.get(stopIndex).decode()
+    for i in range(0, 8):
+        stopIndex = "T" + str(i)
+        stop_num = redis_conn.get(stopIndex).decode()
         stopNum.append(stop_num)
 
     print(stopNum)
 
-    #获取车上人数
-    for i in range(1,6):
-        pasIndex="P"+str(i)
-        pas_num=redis_conn.get(pasIndex).decode()
+    # 获取车上人数
+    for i in range(1, 6):
+        pasIndex = "P" + str(i)
+        pas_num = redis_conn.get(pasIndex).decode()
         busPassengersNum.append(pas_num)
     print(busPassengersNum)
     finalData = [stopNum, busPassengersNum]
 
     return make_response(json.dumps(finalData))
+
 
 # 返回已完成的预约订单总数，已完成响应订单总数，今日已完成订单总数
 @app.route("/getHistoryOrder")
@@ -292,18 +301,20 @@ def getHistoryOrder():
     # 已完成响应订单总数
     response_done_sql = "SELECT count(*) FROM order_info where order_type=0 and status=2;"
     cursor.execute(response_done_sql)
-    response_num=cursor.fetchall()
+    response_num = cursor.fetchall()
     db.commit()
 
     # 今日已完成订单总数
     date = time.strftime('%Y%m%d', time.localtime())
-    today_done_sql="SELECT count(*) FROM order_info where date={0} and status=2;".format(date)
+    today_done_sql = "SELECT count(*) FROM order_info where date={0} and status=2;".format(date)
     cursor.execute(today_done_sql)
-    count=cursor.fetchall()
+    count = cursor.fetchall()
     db.commit()
 
     res = [reserved_num[0][0], response_num[0][0], count[0][0]]
     return make_response(json.dumps(res))
+
+
 @app.route("/carAtStop")  # 车辆到站  返回上下车人数以及车辆行驶路径
 def carAtStop():
     car_id = request.values.get('car_id')
@@ -313,12 +324,13 @@ def carAtStop():
     car_id = "S" + str(int(car_id) + 1)
     stop_id = stopName[int(stop_id)]
     # 根据order_info计算下车几个人（根据分配车辆号和目的站点）,然后将订单改为已完成
-    sql = "SELECT count(*) FROM order_info WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
+    sql = "SELECT count(*) FROM order_info WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id,
+                                                                                                         car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
     db.commit()
     off_num = data[0][0]
-    sql="update order_info set status=2 WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
+    sql = "update order_info set status=2 WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
     cursor.execute(sql)
     db.commit()
     # 根据order_info计算上车几个人（根据分配车辆号和上车站点）
@@ -328,19 +340,21 @@ def carAtStop():
     on_num = data[0][0]
     db.commit()
     nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    sql = "UPDATE order_info SET status=1,onbus_time={0}  WHERE status=0 AND stop_on='{1}' AND allo_bus='{2}';".format(nowtime,stop_id,
-                                                                                                          car_id)
+    sql = "UPDATE order_info SET status=1,onbus_time={0}  WHERE status=0 AND stop_on='{1}' AND allo_bus='{2}';".format(
+        nowtime, stop_id,
+        car_id)
     cursor.execute(sql)
     db.commit()
 
     # 查找path表返回路径
-    path_table=redis_conn.get(car_id).decode()
-    path_table=path_table[4:]
-    path_table='['+path_table
-    redis_conn.set(car_id,path_table)
-    res = [str(on_num + off_num), path_table,on_num,off_num]
+    path_table = redis_conn.get(car_id).decode()
+    path_table = path_table[4:]
+    path_table = '[' + path_table
+    redis_conn.set(car_id, path_table)
+    res = [str(on_num + off_num), path_table, on_num, off_num]
 
     return make_response(json.dumps(res))
+
 
 @app.route("/addOrder")  # 添加新订单，往order_info中插入新数据
 def addOrder():
@@ -348,7 +362,7 @@ def addOrder():
     stop_off = request.values.get('stop_off')
     passengers = request.values.get('passengers')
     # 从redis拉取到目前各个车的车上人数，各车下一站，各车路线
-    onBusPass_num=[]
+    onBusPass_num = []
     onBusPass_num.append(int(redis_conn.get('P1').decode()))
     onBusPass_num.append(int(redis_conn.get('P2').decode()))
     onBusPass_num.append(int(redis_conn.get('P3').decode()))
@@ -370,40 +384,40 @@ def addOrder():
                 onBusPass_num[3] += item[7]
             elif item[8] == "S5":
                 onBusPass_num[4] += item[7]
-    nextStopIds=[]
-    for i in range(1,6):
-        tmpPath = redis_conn.get('S'+i).decode()
+    nextStopIds = []
+    for i in range(1, 6):
+        tmpPath = redis_conn.get('S' + str(i)).decode()
         if tmpPath:
             nextStopIds.append(int(tmpPath[1]))
-    paths=[]
-    for i in range(1,6):
-        tmpPath = redis_conn.get('S'+i).decode()
+    paths = []
+    for i in range(1, 6):
+        tmpPath = redis_conn.get('S' + str(i)).decode()
         if tmpPath:
+            tmpPath=tmpPath[1:len(tmpPath)-1]
             tmpPath = list(int(char) for char in tmpPath.split(','))
             paths.append(tmpPath)
-    res=getNewPathAfterResponse(int(stop_on), int(stop_off), int(passengers),
-                                onBusPass_num, paths, nextStopIds)
+    res = getNewPathAfterResponse(int(stop_on), int(stop_off), int(passengers),
+                                  onBusPass_num, paths, nextStopIds)
     print("新增响应后的影响车辆及路线：", res)
     # 更新path
     tmpStr = ','.join(str(i) for i in res[1])
     tmpStr = '[' + tmpStr + ']'
-    redis_conn.set('S'+(res[0]+1),tmpStr)
+    redis_conn.set('S' + str(res[0] + 1), tmpStr)
     # 新订单写入order_info
     allo_bus = "S" + str(1 + res[0])
-    nowtime=datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    nowtime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     order_id = 'X' + allo_bus + passengers + nowtime
-    date=datetime.datetime.now().strftime('%Y%m%d')
+    date = datetime.datetime.now().strftime('%Y%m%d')
     stop_on = stopName[int(stop_on)]
     stop_off = stopName[int(stop_off)]
-    sql = "INSERT INTO order_info(order_id,stop_on,stop_off,allo_bus,ifOnBus,passengers)" \
-          " VALUES ('{0}','{1}','{2}','{3}',0,'{4}');" \
-        .format(order_id, stop_on, stop_off, allo_bus, passengers)
-    sqlnew = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
-          "allo_bus,expected_on,created_time,onbus_time)" \
-          " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','','{6}','');" \
-        .format(order_id, date, stop_on,stop_off, passengers, allo_bus, nowtime)
+    sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
+             "allo_bus,expected_on,created_time,onbus_time)" \
+             " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','','{6}','');" \
+        .format(order_id, date, stop_on, stop_off, passengers, allo_bus, nowtime)
     cursor.execute(sql)
     db.commit()
     return make_response(json.dumps(res))
+
+
 if __name__ == '__main__':
     app.run()
