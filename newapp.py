@@ -258,7 +258,7 @@ def getSequences():
 
 @app.route("/getOrderInfo")  # 获取订单信息，返回order_info表中内容
 def getOrderInfo():
-    sql = "SELECT * FROM order_info;"
+    sql = "SELECT * FROM order_info where status=0 or status =1;"
     cursor.execute(sql)
     data = cursor.fetchall()
     db.commit()
