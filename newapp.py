@@ -341,5 +341,69 @@ def carAtStop():
     res = [str(on_num + off_num), path_table,on_num,off_num]
 
     return make_response(json.dumps(res))
+
+@app.route("/addOrder")  # 添加新订单，往order_info中插入新数据
+def addOrder():
+    stop_on = request.values.get('stop_on')
+    stop_off = request.values.get('stop_off')
+    passengers = request.values.get('passengers')
+    # 从redis拉取到目前各个车的车上人数，各车下一站，各车路线
+    onBusPass_num=[]
+    onBusPass_num.append(int(redis_conn.get('P1').decode()))
+    onBusPass_num.append(int(redis_conn.get('P2').decode()))
+    onBusPass_num.append(int(redis_conn.get('P3').decode()))
+    onBusPass_num.append(int(redis_conn.get('P4').decode()))
+    onBusPass_num.append(int(redis_conn.get('P5').decode()))
+    # onBusPass_num加上未上车的将要上车的人数
+    sql = "SELECT * FROM order_info;"
+    cursor.execute(sql)
+    data = cursor.fetchall()
+    for item in data:
+        if item[6] == 0:  # 不在公交车上
+            if item[8] == "S1":
+                onBusPass_num[0] += item[7]
+            elif item[8] == "S2":
+                onBusPass_num[1] += item[7]
+            elif item[8] == "S3":
+                onBusPass_num[2] += item[7]
+            elif item[8] == "S4":
+                onBusPass_num[3] += item[7]
+            elif item[8] == "S5":
+                onBusPass_num[4] += item[7]
+    nextStopIds=[]
+    for i in range(1,6):
+        tmpPath = redis_conn.get('S'+i).decode()
+        if tmpPath:
+            nextStopIds.append(int(tmpPath[1]))
+    paths=[]
+    for i in range(1,6):
+        tmpPath = redis_conn.get('S'+i).decode()
+        if tmpPath:
+            tmpPath = list(int(char) for char in tmpPath.split(','))
+            paths.append(tmpPath)
+    res=getNewPathAfterResponse(int(stop_on), int(stop_off), int(passengers),
+                                onBusPass_num, paths, nextStopIds)
+    print("新增响应后的影响车辆及路线：", res)
+    # 更新path
+    tmpStr = ','.join(str(i) for i in res[1])
+    tmpStr = '[' + tmpStr + ']'
+    redis_conn.set('S'+(res[0]+1),tmpStr)
+    # 新订单写入order_info
+    allo_bus = "S" + str(1 + res[0])
+    nowtime=datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    order_id = 'X' + allo_bus + passengers + nowtime
+    date=datetime.datetime.now().strftime('%Y%m%d')
+    stop_on = stopName[int(stop_on)]
+    stop_off = stopName[int(stop_off)]
+    sql = "INSERT INTO order_info(order_id,stop_on,stop_off,allo_bus,ifOnBus,passengers)" \
+          " VALUES ('{0}','{1}','{2}','{3}',0,'{4}');" \
+        .format(order_id, stop_on, stop_off, allo_bus, passengers)
+    sqlnew = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
+          "allo_bus,expected_on,created_time,onbus_time)" \
+          " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','','{6}','');" \
+        .format(order_id, date, stop_on,stop_off, passengers, allo_bus, nowtime)
+    cursor.execute(sql)
+    db.commit()
+    return make_response(json.dumps(res))
 if __name__ == '__main__':
     app.run()
