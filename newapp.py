@@ -321,12 +321,17 @@ def carAtStop():
     sql="update order_info set status=2 WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
     cursor.execute(sql)
     db.commit()
+
     # 根据order_info计算上车几个人（根据分配车辆号和上车站点）
     sql = "SELECT count(*) FROM order_info WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
     on_num = data[0][0]
     db.commit()
+    former_num=redis_conn.get("P"+str(int(car_id) + 1))
+    redis_conn.set("P"+str(int(car_id) + 1),former_num-off_num+on_num)
+    former_num = redis_conn.get("T" + stop_id)
+    redis_conn.set("T" + stop_id, former_num-on_num)
     nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     sql = "UPDATE order_info SET status=1,onbus_time={0}  WHERE status=0 AND stop_on='{1}' AND allo_bus='{2}';".format(nowtime,stop_id,
                                                                                                           car_id)
