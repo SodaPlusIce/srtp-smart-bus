@@ -341,7 +341,7 @@ def carAtStop():
     on_num = data[0][0]
     db.commit()
     former_num=redis_conn.get("P"+str(int(car_ids) + 1))
-    redis_conn.set("P"+str(int(car_id) + 1),former_num-off_num+on_num)
+    redis_conn.set("P"+str(int(car_ids) + 1),former_num-off_num+on_num)
     former_num = redis_conn.get("T" + stop_id)
     redis_conn.set("T" + stop_id, former_num-on_num)
     nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
