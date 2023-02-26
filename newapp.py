@@ -12,7 +12,7 @@ import redis
 
 app = Flask(__name__)
 CORS(app, resources=r'/*')  # 注册CORS, "/*" 允许访问所有api
-redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379, db=0)
+redis_pool = redis.ConnectionPool(host='192.168.203.129', password='000415', port=6379, db=1)
 redis_conn = redis.Redis(connection_pool=redis_pool)
 # 打开数据库连接
 db = pymysql.connect(host='localhost',
@@ -321,11 +321,12 @@ def carAtStop():
     stop_id = request.values.get('stop_id')
 
     car_ids = car_id
-    stop_ids=stop_id
+    stop_ids = stop_id
     car_id = "S" + str(int(car_id) + 1)
     stop_id = stopName[int(stop_id)]
     # 根据order_info计算下车几个人（根据分配车辆号和目的站点）,然后将订单改为已完成
-    sql = "SELECT sum(passengers) FROM order_info WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
+    sql = "SELECT count(*) FROM order_info WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id,
+                                                                                                         car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
     db.commit()
@@ -335,15 +336,19 @@ def carAtStop():
     db.commit()
 
     # 根据order_info计算上车几个人（根据分配车辆号和上车站点）
-    sql = "SELECT sum(passengers) FROM order_info WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
+    sql = "SELECT sum(passengers) FROM order_info WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id,
+                                                                                                               car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
+    print(data)
     on_num = data[0][0]
+    print(on_num)
     db.commit()
-    former_num=redis_conn.get("P"+str(int(car_ids) + 1)).decode()
-    redis_conn.set("P"+str(int(car_ids) + 1),str(int(former_num)-off_num+on_num))
-    former_num = redis_conn.get("T" + stop_ids).decode()
-    redis_conn.set("T" + stop_ids, str(int(former_num)-on_num))
+    if off_num and on_num:
+        former_num = redis_conn.get("P" + str(int(car_ids) + 1)).decode()
+        redis_conn.set("P" + str(int(car_ids) + 1), str(int(former_num) - off_num + on_num))
+        former_num = redis_conn.get("T" + stop_ids).decode()
+        redis_conn.set("T" + stop_ids, str(int(former_num) - on_num))
     nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     sql = "UPDATE order_info SET status=1,onbus_time={0}  WHERE status=0 AND stop_on='{1}' AND allo_bus='{2}';".format(
         nowtime, stop_id,
@@ -356,7 +361,15 @@ def carAtStop():
     path_table = path_table[4:]
     path_table = '[' + path_table
     redis_conn.set(car_id, path_table)
-    res = [str(on_num + off_num), path_table, on_num, off_num]
+
+    if off_num and on_num:
+        res = [str(on_num + off_num), path_table, on_num, off_num]
+    elif off_num:
+        res=[str(off_num),path_table,0,off_num]
+    elif on_num:
+        res=[str(on_num),path_table,on_num,0]
+    else:
+        res=["0",path_table,0,0]
 
     return make_response(json.dumps(res))
 
@@ -398,7 +411,7 @@ def addOrder():
     for i in range(1, 6):
         tmpPath = redis_conn.get('S' + str(i)).decode()
         if tmpPath:
-            tmpPath=tmpPath[1:len(tmpPath)-1]
+            tmpPath = tmpPath[1:len(tmpPath) - 1]
             tmpPath = list(int(char) for char in tmpPath.split(','))
             paths.append(tmpPath)
     res = getNewPathAfterResponse(int(stop_on), int(stop_off), int(passengers),
@@ -416,8 +429,8 @@ def addOrder():
     stop_on = stopName[int(stop_on)]
     stop_off = stopName[int(stop_off)]
     sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
-             "allo_bus,expected_on,created_time,onbus_time)" \
-             " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','','{6}','');" \
+          "allo_bus,expected_on,created_time,onbus_time)" \
+          " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','','{6}','');" \
         .format(order_id, date, stop_on, stop_off, passengers, allo_bus, nowtime)
     cursor.execute(sql)
     db.commit()
