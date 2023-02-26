@@ -325,8 +325,7 @@ def carAtStop():
     car_id = "S" + str(int(car_id) + 1)
     stop_id = stopName[int(stop_id)]
     # 根据order_info计算下车几个人（根据分配车辆号和目的站点）,然后将订单改为已完成
-    sql = "SELECT count(*) FROM order_info WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id,
-                                                                                                         car_id)
+    sql = "SELECT sum(passengers) FROM order_info WHERE status=1 AND stop_off='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
     db.commit()
@@ -336,7 +335,7 @@ def carAtStop():
     db.commit()
 
     # 根据order_info计算上车几个人（根据分配车辆号和上车站点）
-    sql = "SELECT count(*) FROM order_info WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
+    sql = "SELECT sum(passenger) FROM order_info WHERE status=0 AND stop_on='{0}' AND allo_bus='{1}';".format(stop_id, car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
     on_num = data[0][0]
