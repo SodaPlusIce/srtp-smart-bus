@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Flask-SocketIO Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function () {
+            // namespace = '/test';
+            var socket = io.connect("127.0.0.1:5000");
+
+            // var socket = io();
+            // socket.on('connect', function () {
+            // socket.emit('my_event', { data: 'lalala' });
+            // // });
+            // socket.on('connect', function () {
+            //     socket.emit('my_event', { data: 'I\'m connected!' });
+            // });
+
+            // socket.on('my_response', function (msg) {
+            //     $('#log').append('<br>' + $('<div/>').text('Received #' + msg.count + ': ' + msg.data).html());
+            // });
+
+            // $('form#emit').submit(function (event) {
+            //     socket.emit('message', { data: $('#emit_data').val() });
+            //     return false;
+            // });
+        });
+    </script>
+</head>
+
+<body>
+    <h1>Flask-SocketIO Test</h1>
+    <p>Async mode is: <b>{{ async_mode }}</b></p>
+    <h2>Send:</h2>
+    <form id="emit" method="POST" action='#'>
+        <input type="text" name="emit_data" id="emit_data" placeholder="Message">
+        <input type="submit" value="Echo">
+    </form>
+    <h2>Receive:</h2>
+    <div id="log"></div>
+</body>
+
+</html>

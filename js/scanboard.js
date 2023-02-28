@@ -86,7 +86,9 @@ $(function () {
 			"version": '2.0'  // Loca 版本
 		},
 	}).then((AMap) => {
-		//地图初始化
+		// 建立和后台的socketio连接
+		var socket = io.connect("127.0.0.1:5000");
+		// 地图初始化
 		var myMap = new AMap.Map('myMap', {
 			resizeEnable: true,
 			zoom: 13,
@@ -281,7 +283,13 @@ $(function () {
 					end = stopLngLat[end];
 					var count1 = 0// 解决在某个站点一直徘徊的问题
 					var isPassedLast = false;// 是否已经走过了除了0的最后一站，避免刚开始就判断到车到终点的bug
+					var count2 = 0;// 解决socket持续发送的问题
 					carMarker[lineArr_index].on("moving", function (e) {
+						count2++;
+						// 通过socketio给后台公交车的数据
+						if (count2 % 20 == 0) {
+							socket.emit('bus_pos', { bus_index: lineArr_index, pos: e.pos });
+						}
 						var i;
 						for (i = 0; i < middle.length; i++) {
 							if (
@@ -584,11 +592,11 @@ $(function () {
 		// console.log(arr[0][4] == 0 ? "(等待中)" : "(已上车)");
 		var temp = "";
 		for (var i = 0; i < arr.length; i++) {
-			temp = arr[i][3] + (arr[i][4] == 0 ? "(等待中)" : "(已上车)")
+			temp = arr[i][8] + (arr[i][6] == 0 ? "(等待中)" : "(已上车)")
 			var addHtml = "<li><div class='fontInner clearfix'>"
 			addHtml += "<span>" + arr[i][0] + "</span>"
-			addHtml += "<span>" + arr[i][1] + "</span>"
-			addHtml += "<span>" + arr[i][2] + "</span>"
+			addHtml += "<span>" + arr[i][3] + "</span>"
+			addHtml += "<span>" + arr[i][4] + "</span>"
 			addHtml += "<span>" + temp + "</span>"
 			addHtml += "</div></li>"
 			$('#FontScroll ul').append(addHtml)
