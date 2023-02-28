@@ -4,6 +4,7 @@ import json
 import pymysql
 from flask import Flask, request, make_response
 from flask_cors import CORS
+from flask_socketio import SocketIO,send,emit
 import numpy as np
 import random
 import itertools
@@ -22,6 +23,9 @@ db = pymysql.connect(host='localhost',
                      database='srtp-smart-bus-jks',
                      charset='utf8')
 cursor = db.cursor()
+# socketio
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app,cors_allowed_origins="*")
 
 stopName = [
     "换乘中心",  # 0
@@ -167,7 +171,7 @@ def getNewPathAfterResponse(stop_on, stop_off, passengers, onBusPass_nums, paths
     return res
 
 
-# point
+# by代码end
 
 # 预约场景描述：现在的预约模拟是所有乘客在换乘中心，要前往各个村，然后算法分配车辆，然后开始跑，然后订单陆续完成
 # 返回各个车辆的路径
@@ -248,8 +252,8 @@ def getSequences():
     redis_conn.set("P4", 0)
     redis_conn.set("P5", 0)
 
-    print("分配路线：", min_stops)
-    print("各站点人数：", pas)
+    # print("分配路线：", min_stops)
+    # print("各站点人数：", pas)
     data = {
         'seqs': min_stops, 'passenger_num': pas
     }
@@ -276,14 +280,14 @@ def getStopWaitingNum():
         stop_num = redis_conn.get(stopIndex).decode()
         stopNum.append(stop_num)
 
-    print(stopNum)
+    # print(stopNum)
 
     # 获取车上人数
     for i in range(1, 6):
         pasIndex = "P" + str(i)
         pas_num = redis_conn.get(pasIndex).decode()
         busPassengersNum.append(pas_num)
-    print(busPassengersNum)
+    # print(busPassengersNum)
     finalData = [stopNum, busPassengersNum]
 
     return make_response(json.dumps(finalData))
@@ -340,9 +344,9 @@ def carAtStop():
                                                                                                                car_id)
     cursor.execute(sql)
     data = cursor.fetchall()
-    print(data)
+    # print(data)
     on_num = data[0][0]
-    print(on_num)
+    # print(on_num)
     db.commit()
     if off_num and on_num:
         former_num = redis_conn.get("P" + str(int(car_ids) + 1)).decode()
@@ -378,7 +382,7 @@ def carAtStop():
         res=[str(on_num),path_table,int(on_num),0]
     else:
         res=["0",path_table,0,0]
-    print(res)
+    # print(res)
     return make_response(json.dumps(res))
 
 
@@ -424,7 +428,7 @@ def addOrder():
             paths.append(tmpPath)
     res = getNewPathAfterResponse(int(stop_on), int(stop_off), int(passengers),
                                   onBusPass_num, paths, nextStopIds)
-    print("新增响应后的影响车辆及路线：", res)
+    # print("新增响应后的影响车辆及路线：", res)
     # 更新path
     tmpStr = ','.join(str(i) for i in res[1])
     tmpStr = '[' + tmpStr + ']'
@@ -444,6 +448,19 @@ def addOrder():
     db.commit()
     return make_response(json.dumps(res))
 
+# socketio相关代码start
+@socketio.on('connect')
+def test_connect():
+    print('socket connected, this is server')
+
+@socketio.on('disconnect')
+def test_disconnect():
+    print('socket disconnected, this is server')
+
+@socketio.on('bus_pos')
+def handle_message(mes):
+    print(mes)
+# socketio相关代码end
 
 if __name__ == '__main__':
     app.run()
