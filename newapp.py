@@ -450,7 +450,8 @@ def addOrder():
     return make_response(json.dumps(res))
 
 # 接收中央大屏传来的bus位置
-bus_pos=dict()
+bus_pos=[[120.265966, 30.721857],[120.265966, 30.721857],[120.265966, 30.721857],
+         [120.265966, 30.721857],[120.265966, 30.721857]]
 # socketio相关代码start
 @socketio.on('connect')
 def test_connect():
@@ -463,13 +464,18 @@ def test_disconnect():
 @socketio.on('bus_pos')
 def handle_message(mes):
     global bus_pos
-    print(mes['bus_index'])
+    car_id=mes['bus_index']
+    print(mes)
+    x=mes['pos'][0]
+    y=mes['pos'][1]
+    bus_pos[car_id][0]=x
+    bus_pos[car_id][1]=y
     print(bus_pos)
 @socketio.on('app_pos')
 def returnBusPos():
     global bus_pos
     print(bus_pos)
-    emit('app_pos',"duiduidui")
+    emit('app_pos',bus_pos)
 # socketio相关代码end
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', debug=True)
