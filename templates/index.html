@@ -10,10 +10,10 @@
 <h2 id="t"></h2>
 <script type="text/javascript">
     $(document).ready(function() {
-        namespace = '/test_conn';
-        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
-        socket.on('server_response', function(res) {
-            var t = res.data;
+
+        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+        socket.on('test_pos', function(res) {
+            var t = res;
             console.log(t);
             $("#t").text(t);
         });

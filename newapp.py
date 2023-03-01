@@ -462,13 +462,14 @@ def test_disconnect():
 
 @socketio.on('bus_pos')
 def handle_message(mes):
-    bus_pos=mes
-    print( bus_pos)
-@socketio.on('app_bus_pos')
+    global bus_pos
+    print(mes['bus_index'])
+    print(bus_pos)
+@socketio.on('app_pos')
 def returnBusPos():
-    print("app_pos"+bus_pos)
-    return bus_pos;
+    global bus_pos
+    print(bus_pos)
+    emit('app_pos',"duiduidui")
 # socketio相关代码end
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    socketio.run(app, host='0.0.0.0', debug=True)
