@@ -13,7 +13,7 @@ import redis
 
 app = Flask(__name__)
 CORS(app, resources=r'/*')  # 注册CORS, "/*" 允许访问所有api
-redis_pool = redis.ConnectionPool(host='127.0.0.1',port=6379, db=1)
+redis_pool = redis.ConnectionPool(host='192.168.203.129', port=6379, password='000415', db=1)
 redis_conn = redis.Redis(connection_pool=redis_pool)
 # 打开数据库连接
 db = pymysql.connect(host='localhost',
@@ -288,6 +288,7 @@ def getStopWaitingNum():
         pas_num = redis_conn.get(pasIndex).decode()
         busPassengersNum.append(pas_num)
     # print(busPassengersNum)
+
     finalData = [stopNum, busPassengersNum]
 
     return make_response(json.dumps(finalData))
@@ -346,8 +347,8 @@ def carAtStop():
     data = cursor.fetchall()
     # print(data)
     on_num = data[0][0]
-    # print(on_num)
     db.commit()
+    print(off_num,on_num)
     if off_num and on_num:
         former_num = redis_conn.get("P" + str(int(car_ids) + 1)).decode()
         redis_conn.set("P" + str(int(car_ids) + 1), str(int(former_num) - off_num + on_num))
@@ -448,6 +449,8 @@ def addOrder():
     db.commit()
     return make_response(json.dumps(res))
 
+# 接收中央大屏传来的bus位置
+bus_pos=dict()
 # socketio相关代码start
 @socketio.on('connect')
 def test_connect():
@@ -459,8 +462,13 @@ def test_disconnect():
 
 @socketio.on('bus_pos')
 def handle_message(mes):
-    print(mes)
+    bus_pos=mes
+    print( bus_pos)
+@socketio.on('app_bus_pos')
+def returnBusPos():
+    print("app_pos"+bus_pos)
+    return bus_pos;
 # socketio相关代码end
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0')
