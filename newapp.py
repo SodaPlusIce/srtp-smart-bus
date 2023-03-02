@@ -1,4 +1,5 @@
 import datetime
+import decimal
 import json
 
 import pymysql
@@ -40,6 +41,12 @@ stopName = [
 
 
 ###############################
+# 十进制解码器
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            return int(o)
+        super(DecimalEncoder, self).default(o)
 def input_distance():
     a = np.array([[0.0, 2.6, 1.7, 2.6, 2.4, 2.3, 3.0, 3.8],
                   [2.6, 0.0, 4.1, 4.9, 4.6, 3.7, 3.8, 4.7],
@@ -185,6 +192,10 @@ def getSequences():
     calculate_min_time(dis, stops, 7, buses)
 
     pas = []
+    # 数据库初始化
+    sql = "update order_info set status=2 where status=0 or status=1"
+    cursor.execute(sql)
+    db.commit()
     for i in range(len(stops)):
         pas.append(stops[i].passenger)
 
@@ -448,7 +459,43 @@ def addOrder():
     cursor.execute(sql)
     db.commit()
     return make_response(json.dumps(res))
-
+@app.route("/waitingTime")
+def returnWaitingTime():
+    sql="SELECT SUM(TIMESTAMPDIFF(HOUR,created_time,onbus_time)) FROM order_info WHERE STATUS=1 GROUP BY phone"
+    cursor.execute(sql)
+    waiting_time=cursor.fetchall()
+    db.commit()
+    return make_response(json.dumps(waiting_time,cls=DecimalEncoder))
+@app.route('/getonSum')
+def returnGetOnSum():
+    sql="SELECT SUM(passengers) FROM order_info GROUP BY stop_on"
+    cursor.execute(sql)
+    get_on_sum=cursor.fetchall()
+    db.commit()
+    return make_response(json.dumps(get_on_sum,cls=DecimalEncoder))
+@app.route("/getoffSum")
+def returnGetOffSum():
+    sql = "SELECT SUM(passengers) FROM order_info GROUP BY stop_off"
+    cursor.execute(sql)
+    get_off_sum = cursor.fetchall()
+    db.commit()
+    return make_response(json.dumps(get_off_sum,cls=DecimalEncoder))
+@app.route("/getoffSumByDate")
+def returnGetOffSumByDate():
+    nowtime = datetime.datetime.now().strftime('%Y%m%d')
+    sql = "SELECT SUM(passengers) FROM order_info where date={0} GROUP BY stop_off ".format(nowtime)
+    cursor.execute(sql)
+    get_off_sum = cursor.fetchall()
+    db.commit()
+    return make_response(json.dumps(get_off_sum,cls=DecimalEncoder))
+@app.route('/getonSumByDate')
+def returnGetOnSumByDate():
+    nowtime = datetime.datetime.now().strftime('%Y%m%d')
+    sql="SELECT SUM(passengers) FROM order_info where date={0} GROUP BY stop_on ".format(nowtime)
+    cursor.execute(sql)
+    get_on_sum=cursor.fetchall()
+    db.commit()
+    return make_response(json.dumps(get_on_sum,cls=DecimalEncoder))
 # 接收中央大屏传来的bus位置，先全初始化为起点坐标
 bus_pos=[[120.265966, 30.721857],[120.265966, 30.721857],[120.265966, 30.721857],
          [120.265966, 30.721857],[120.265966, 30.721857]]
