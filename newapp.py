@@ -399,12 +399,13 @@ def carAtStop():
     return make_response(json.dumps(res))
 
 
-@app.route("/addOrder",methods=['GET','POST'])  # 添加新订单，往order_info中插入新数据
+@app.route("/addOrder",methods=['GET','POST'])  # 添加新订单，往order_info中插入新数据,预约单与响应单的分类处理仍然不完善
 def addOrder():
 
     stop_on = request.values.get('stop_on')
     stop_off = request.values.get('stop_off')
     passengers = request.values.get('passengers')
+    expected_on=request.values.get("expected_on")
     print(stop_on,stop_off,passengers)
     # 从redis拉取到目前各个车的车上人数，各车下一站，各车路线
     onBusPass_num = []
@@ -451,14 +452,22 @@ def addOrder():
     # 新订单写入order_info
     allo_bus = "S" + str(1 + res[0])
     nowtime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    order_id = 'X' + allo_bus + passengers + nowtime
+
     date = datetime.datetime.now().strftime('%Y%m%d')
     # stop_on = stopName[int(stop_on)]
     # stop_off = stopName[int(stop_off)]
-    sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
+    if expected_on=="选择 时间段":
+     order_id = 'X' + allo_bus + passengers + nowtime
+     sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
           "allo_bus,expected_on,created_time,onbus_time)" \
           " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','','{6}','');" \
         .format(order_id, date, stop_on, stop_off, passengers, allo_bus, nowtime)
+    else:
+        order_id = 'Y' + allo_bus + passengers + nowtime
+        sql="INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
+          "allo_bus,expected_on,created_time,onbus_time)" \
+          " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}',{6},'{7}','');" \
+        .format(order_id, date, stop_on, stop_off, passengers, allo_bus, expected_on,nowtime)
     cursor.execute(sql)
     db.commit()
     return make_response(json.dumps(res))
@@ -564,7 +573,6 @@ def handle_message(mes):
     bus_pos[car_id][1]=y
     # print(bus_pos)
     # bus_pos=mes
-
 @socketio.on('app_pos')
 def returnBusPos():
     global bus_pos
