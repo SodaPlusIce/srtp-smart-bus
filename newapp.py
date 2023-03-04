@@ -3,7 +3,7 @@ import decimal
 import json
 
 import pymysql
-from flask import Flask, request, make_response
+from flask import Flask, request, make_response, Response, abort
 from flask_cors import CORS
 from flask_socketio import SocketIO,send,emit
 import numpy as np
@@ -193,6 +193,7 @@ def getSequences():
 
     pas = []
     # 数据库初始化
+    nowtime = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     sql = "update order_info set status=2 where status=0 or status=1"
     cursor.execute(sql)
     db.commit()
@@ -496,6 +497,39 @@ def returnGetOnSumByDate():
     get_on_sum=cursor.fetchall()
     db.commit()
     return make_response(json.dumps(get_on_sum,cls=DecimalEncoder))
+@app.route('/getUserHistoryOrder')
+def returnUserHistoryOrder():
+    phone=request.values.get('phone')
+    sql="select * from order_info where phone={0}".format(phone)
+    cursor.execute(sql)
+    db.commit()
+    history=cursor.fetchall()
+    return make_response(json.dumps(history,cls=DecimalEncoder))
+@app.route('/register')
+def register():
+    phone=request.values.get('phone')
+    pwd=request.values.get('password')
+    username=request.values.get('username')
+    sql="insert into passenger (phone,password,username) values({0},{1},{2})".format(phone,pwd,username)
+    try:
+        cursor.execute(sql)
+        db.commit()
+    except pymysql.Error as e:
+        print(e.args[0], e.args[1])
+        res=Response('该用户已注册')
+        return abort(res)
+    return '注册成功'
+@app.route('/login')
+def login():
+    phone = request.values.get('phone')
+    pwd = request.values.get('password')
+    sql="select phone,password from passenger where phone={0} and password={1}".format(phone,pwd)
+    cursor.execute(sql)
+    data=cursor.fetchall()
+    if not data:
+        res = Response('用户名或密码错误')
+        return abort(res)
+    return '登陆成功'
 # 接收中央大屏传来的bus位置，先全初始化为起点坐标
 bus_pos=[[120.265966, 30.721857],[120.265966, 30.721857],[120.265966, 30.721857],
          [120.265966, 30.721857],[120.265966, 30.721857]]
@@ -512,16 +546,16 @@ def test_disconnect():
 def handle_message(mes):
     global bus_pos
     car_id=mes['bus_index']
-    print(mes)
+    # print(mes)
     x=mes['pos'][0]
     y=mes['pos'][1]
     bus_pos[car_id][0]=x
     bus_pos[car_id][1]=y
-    print(bus_pos)
+    # print(bus_pos)
 @socketio.on('app_pos')
 def returnBusPos():
     global bus_pos
-    print(bus_pos)
+    # print(bus_pos)
     emit('app_pos',bus_pos)
 # socketio相关代码end
 if __name__ == '__main__':
