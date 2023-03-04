@@ -399,11 +399,13 @@ def carAtStop():
     return make_response(json.dumps(res))
 
 
-@app.route("/addOrder")  # 添加新订单，往order_info中插入新数据
+@app.route("/addOrder",methods=['GET','POST'])  # 添加新订单，往order_info中插入新数据
 def addOrder():
+
     stop_on = request.values.get('stop_on')
     stop_off = request.values.get('stop_off')
     passengers = request.values.get('passengers')
+    print(stop_on,stop_off,passengers)
     # 从redis拉取到目前各个车的车上人数，各车下一站，各车路线
     onBusPass_num = []
     onBusPass_num.append(int(redis_conn.get('P1').decode()))
@@ -437,9 +439,9 @@ def addOrder():
         tmpPath = redis_conn.get('S' + str(i)).decode()
         if tmpPath:
             tmpPath = tmpPath[1:len(tmpPath) - 1]
-            tmpPath = list(int(char) for char in tmpPath.split(','))
+            tmpPath = list(char for char in tmpPath.split(','))
             paths.append(tmpPath)
-    res = getNewPathAfterResponse(int(stop_on), int(stop_off), int(passengers),
+    res = getNewPathAfterResponse(stop_on, stop_off, int(passengers),
                                   onBusPass_num, paths, nextStopIds)
     # print("新增响应后的影响车辆及路线：", res)
     # 更新path
@@ -451,8 +453,8 @@ def addOrder():
     nowtime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     order_id = 'X' + allo_bus + passengers + nowtime
     date = datetime.datetime.now().strftime('%Y%m%d')
-    stop_on = stopName[int(stop_on)]
-    stop_off = stopName[int(stop_off)]
+    # stop_on = stopName[int(stop_on)]
+    # stop_off = stopName[int(stop_off)]
     sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
           "allo_bus,expected_on,created_time,onbus_time)" \
           " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','','{6}','');" \
@@ -460,6 +462,7 @@ def addOrder():
     cursor.execute(sql)
     db.commit()
     return make_response(json.dumps(res))
+### 获取每位乘客的等待时间
 @app.route("/waitingTime")
 def returnWaitingTime():
     sql="SELECT SUM(TIMESTAMPDIFF(HOUR,created_time,onbus_time)) FROM order_info WHERE STATUS=1 GROUP BY phone"
@@ -467,6 +470,7 @@ def returnWaitingTime():
     waiting_time=cursor.fetchall()
     db.commit()
     return make_response(json.dumps(waiting_time,cls=DecimalEncoder))
+### 获取各个站点上车总人数
 @app.route('/getonSum')
 def returnGetOnSum():
     sql="SELECT SUM(passengers) FROM order_info GROUP BY stop_on"
@@ -474,6 +478,7 @@ def returnGetOnSum():
     get_on_sum=cursor.fetchall()
     db.commit()
     return make_response(json.dumps(get_on_sum,cls=DecimalEncoder))
+### 获取各个站点下车总人数
 @app.route("/getoffSum")
 def returnGetOffSum():
     sql = "SELECT SUM(passengers) FROM order_info GROUP BY stop_off"
@@ -481,6 +486,7 @@ def returnGetOffSum():
     get_off_sum = cursor.fetchall()
     db.commit()
     return make_response(json.dumps(get_off_sum,cls=DecimalEncoder))
+### 获取当天各个站点下车总人数
 @app.route("/getoffSumByDate")
 def returnGetOffSumByDate():
     nowtime = datetime.datetime.now().strftime('%Y%m%d')
@@ -489,6 +495,7 @@ def returnGetOffSumByDate():
     get_off_sum = cursor.fetchall()
     db.commit()
     return make_response(json.dumps(get_off_sum,cls=DecimalEncoder))
+### 获取当天各个站点上车总人数
 @app.route('/getonSumByDate')
 def returnGetOnSumByDate():
     nowtime = datetime.datetime.now().strftime('%Y%m%d')
@@ -497,6 +504,7 @@ def returnGetOnSumByDate():
     get_on_sum=cursor.fetchall()
     db.commit()
     return make_response(json.dumps(get_on_sum,cls=DecimalEncoder))
+### 获取该用户的历史订单
 @app.route('/getUserHistoryOrder')
 def returnUserHistoryOrder():
     phone=request.values.get('phone')
@@ -505,6 +513,7 @@ def returnUserHistoryOrder():
     db.commit()
     history=cursor.fetchall()
     return make_response(json.dumps(history,cls=DecimalEncoder))
+###注册
 @app.route('/register')
 def register():
     phone=request.values.get('phone')
@@ -519,6 +528,7 @@ def register():
         res=Response('该用户已注册')
         return abort(res)
     return '注册成功'
+### 登录
 @app.route('/login')
 def login():
     phone = request.values.get('phone')
@@ -533,6 +543,7 @@ def login():
 # 接收中央大屏传来的bus位置，先全初始化为起点坐标
 bus_pos=[[120.265966, 30.721857],[120.265966, 30.721857],[120.265966, 30.721857],
          [120.265966, 30.721857],[120.265966, 30.721857]]
+# bus_pos=dict()
 # socketio相关代码start
 @socketio.on('connect')
 def test_connect():
@@ -552,6 +563,8 @@ def handle_message(mes):
     bus_pos[car_id][0]=x
     bus_pos[car_id][1]=y
     # print(bus_pos)
+    # bus_pos=mes
+
 @socketio.on('app_pos')
 def returnBusPos():
     global bus_pos
