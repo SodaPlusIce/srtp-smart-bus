@@ -38,7 +38,16 @@ stopName = [
     "花园湾村",  # 6
     "南坝村",  # 7
 ]
-
+stopMap={
+    "换乘中心":0,
+    "镇西村":1,
+    "石淙村":2,
+    "姚家坝村":3,
+    "银子桥村":4,
+    "羊河坝村":5,
+    "花园湾村":6,
+    "南坝村":7
+}
 
 ###############################
 # 十进制解码器
@@ -398,7 +407,7 @@ def carAtStop():
     # print(res)
     return make_response(json.dumps(res))
 
-
+socketPath=[]
 @app.route("/addOrder",methods=['GET','POST'])  # 添加新订单，往order_info中插入新数据,预约单与响应单的分类处理仍然不完善
 def addOrder():
 
@@ -433,24 +442,30 @@ def addOrder():
     nextStopIds = []
     for i in range(1, 6):
         tmpPath = redis_conn.get('S' + str(i)).decode()
-        if tmpPath:
+        if len(tmpPath)>=2 and tmpPath[1]!=']':
             nextStopIds.append(int(tmpPath[1]))
     paths = []
     for i in range(1, 6):
         tmpPath = redis_conn.get('S' + str(i)).decode()
         if tmpPath:
+
             tmpPath = tmpPath[1:len(tmpPath) - 1]
-            tmpPath = list(char for char in tmpPath.split(','))
+
+            tmpPath = list(int(char) for char in tmpPath.split(','))
             paths.append(tmpPath)
-    res = getNewPathAfterResponse(stop_on, stop_off, int(passengers),
+    stop_on_index=stopMap[stop_on]
+    stop_off_index=stopMap[stop_off]
+    print(stop_on_index,stop_off_index,onBusPass_num)
+    res = getNewPathAfterResponse(stop_on_index, stop_off_index, int(passengers),
                                   onBusPass_num, paths, nextStopIds)
-    # print("新增响应后的影响车辆及路线：", res)
+    print("新增响应后的影响车辆及路线：", res)
     # 更新path
     tmpStr = ','.join(str(i) for i in res[1])
     tmpStr = '[' + tmpStr + ']'
     redis_conn.set('S' + str(res[0] + 1), tmpStr)
     # 新订单写入order_info
     allo_bus = "S" + str(1 + res[0])
+    res.append(allo_bus)
     nowtime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
     date = datetime.datetime.now().strftime('%Y%m%d')
@@ -470,7 +485,14 @@ def addOrder():
         .format(order_id, date, stop_on, stop_off, passengers, allo_bus, expected_on,nowtime)
     cursor.execute(sql)
     db.commit()
+    print(res)
+    global socketPath
+    socketPath=res;
     return make_response(json.dumps(res))
+@socketio.on("refresh_path")
+def returnAddPath():
+    print("进入")
+    emit('refresh_path',socketPath)
 ### 获取每位乘客的等待时间
 @app.route("/waitingTime")
 def returnWaitingTime():
