@@ -392,9 +392,16 @@ def carAtStop():
 
     # 查找path表返回路径
     path_table = redis_conn.get(car_id).decode()
-    path_table = path_table[4:]
-    path_table = '[' + path_table
-    redis_conn.set(car_id, path_table)
+    print("old_path_table", path_table)
+    if len(path_table)>=4:
+
+     path_table = path_table[4:]
+     path_table = '[' + path_table
+     redis_conn.set(car_id, path_table)
+
+    else:
+        path_table=""
+    print("new_path_table", path_table)
 
     if off_num and on_num:
         res = [str(on_num + off_num), path_table, int(on_num), int(off_num)]
@@ -460,11 +467,13 @@ def addOrder():
                                   onBusPass_num, paths, nextStopIds)
     print("新增响应后的影响车辆及路线：", res)
     # 更新path
-    tmpStr = ','.join(str(i) for i in res[1])
+    tmpStr = ", ".join(str(i) for i in res[1])
     tmpStr = '[' + tmpStr + ']'
     redis_conn.set('S' + str(res[0] + 1), tmpStr)
     # 新订单写入order_info
     allo_bus = "S" + str(1 + res[0])
+    stop_num=redis_conn.get("T"+str(res[1][1])).decode()
+    redis_conn.set("T"+str(res[1][1]),str(int(stop_num)+int(passengers)))
     res.append(allo_bus)
     nowtime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
@@ -481,7 +490,7 @@ def addOrder():
         order_id = 'Y' + allo_bus + passengers + nowtime
         sql="INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
           "allo_bus,expected_on,created_time,onbus_time)" \
-          " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}',{6},'{7}','');" \
+          " VALUES ('{0}','1','{1}','{2}','{3}','123456789','0','{4}','{5}','{6}','{7}','');" \
         .format(order_id, date, stop_on, stop_off, passengers, allo_bus, expected_on,nowtime)
     cursor.execute(sql)
     db.commit()
@@ -491,8 +500,8 @@ def addOrder():
     return make_response(json.dumps(res))
 @socketio.on("refresh_path")
 def returnAddPath():
-    print("进入")
-    emit('refresh_path',socketPath)
+    if socketPath:
+     emit('refresh_path',socketPath)
 ### 获取每位乘客的等待时间
 @app.route("/waitingTime")
 def returnWaitingTime():
