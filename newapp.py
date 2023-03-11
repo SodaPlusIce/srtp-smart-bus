@@ -498,10 +498,24 @@ def addOrder():
     global socketPath
     socketPath=res;
     return make_response(json.dumps(res))
-@socketio.on("refresh_path")
-def returnAddPath():
-    if socketPath:
-     emit('refresh_path',socketPath)
+
+### 获取大屏的初始化路线并返回给客户端
+route_app=[]
+@socketio.on("route")
+def getRoute(route):
+    global route_app
+    print("初始化的路线",route)
+    route_app=route
+
+@app.route("/routeInitial")
+def returnRoute():
+    print(route_app)
+    return make_response(json.dumps(route_app))
+@app.route("/postRoute")
+def getRoute():
+    route=request.values.to_dict()
+    print(route)
+    return "xxx"
 ### 获取每位乘客的等待时间
 @app.route("/waitingTime")
 def returnWaitingTime():
@@ -585,6 +599,10 @@ bus_pos=[[120.265966, 30.721857],[120.265966, 30.721857],[120.265966, 30.721857]
          [120.265966, 30.721857],[120.265966, 30.721857]]
 # bus_pos=dict()
 # socketio相关代码start
+@socketio.on("refresh_path")
+def returnAddPath():
+    if socketPath:
+     emit('refresh_path',socketPath)
 @socketio.on('connect')
 def test_connect():
     print('socket connected, this is server')
