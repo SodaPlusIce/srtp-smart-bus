@@ -12,7 +12,9 @@
     $(document).ready(function() {
 
         var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
-        socket.on('test_pos', function(res) {
+        socket.emit('refresh_path')
+        socket.on('refresh_path', function(res) {
+            console.log("进入")
             var t = res;
             console.log(t);
             $("#t").text(t);

@@ -15,9 +15,9 @@ def test_connect():
 def test_disconnect():
     print('socket disconnected, this is server')
 
-@socketio.on('my_event')
+@socketio.on('refresh_path')
 def handle_message():
-    socketio.emit('test_pos',"ddd")
+    emit('refresh_path',"ddd")
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=True,port=5001)

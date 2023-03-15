@@ -289,6 +289,13 @@ def getOrderInfo():
     db.commit()
     return make_response(json.dumps(data))
 
+@app.route("/getHistoryOrderInfo")
+def getHistoryOrderInfo():
+    sql = "SELECT * FROM order_info where status=2;"
+    cursor.execute(sql)
+    data = cursor.fetchall()
+    db.commit()
+    return make_response(json.dumps(data))
 
 @app.route("/getStopWaitingNum")  # 获取每个站点的等待人数（ifOnBus为0）和车上人数（ifOnBus为1），返回一个长度为8的数组
 def getStopWaitingNum():
@@ -450,7 +457,7 @@ def addOrder():
     for i in range(1, 6):
         tmpPath = redis_conn.get('S' + str(i)).decode()
         if len(tmpPath)>=2 and tmpPath[1]!=']':
-            nextStopIds.append(int(tmpPath[1]))
+            nextStopIds.append(int(tmpPath[4]))
     paths = []
     for i in range(1, 6):
         tmpPath = redis_conn.get('S' + str(i)).decode()
@@ -462,25 +469,27 @@ def addOrder():
             paths.append(tmpPath)
     stop_on_index=stopMap[stop_on]
     stop_off_index=stopMap[stop_off]
-    print(stop_on_index,stop_off_index,onBusPass_num)
+    # print(stop_on_index,stop_off_index,onBusPass_num)
+    print(nextStopIds)
     res = getNewPathAfterResponse(stop_on_index, stop_off_index, int(passengers),
                                   onBusPass_num, paths, nextStopIds)
     print("新增响应后的影响车辆及路线：", res)
+    res[1].insert(0,8)
     # 更新path
     tmpStr = ", ".join(str(i) for i in res[1])
     tmpStr = '[' + tmpStr + ']'
     redis_conn.set('S' + str(res[0] + 1), tmpStr)
     # 新订单写入order_info
     allo_bus = "S" + str(1 + res[0])
-    stop_num=redis_conn.get("T"+str(res[1][1])).decode()
-    redis_conn.set("T"+str(res[1][1]),str(int(stop_num)+int(passengers)))
+    stop_num=redis_conn.get("T"+str(res[1][2])).decode()
+    redis_conn.set("T"+str(res[1][2]),str(int(stop_num)+int(passengers)))
     res.append(allo_bus)
     nowtime = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
     date = datetime.datetime.now().strftime('%Y%m%d')
     # stop_on = stopName[int(stop_on)]
     # stop_off = stopName[int(stop_off)]
-    if expected_on=="选择 时间段":
+    if expected_on=="选择 时间段": #响应单
      order_id = 'X' + allo_bus + passengers + nowtime
      sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
           "allo_bus,expected_on,created_time,onbus_time)" \
@@ -627,6 +636,22 @@ def returnBusPos():
     global bus_pos
     # print(bus_pos)
     emit('app_pos',bus_pos)
+@socketio.on('driver_info')
+def returnDriver():
+    onbus_num=int(redis_conn.get('P1').decode())
+    path=redis_conn.get("S1").decode()
+    if len(path)>=4:
+     stop_num=int(redis_conn.get('T'+str(path[4])).decode())
+     stop_index = int(path[4])
+     stop_name=stopName[stop_index]
+    else:
+     stop_index=0
+     stop_name=stopName[stop_index]
+     stop_num=0
+    res=[stop_name,onbus_num,stop_num]
+    emit('driver_info',res)
+
+
 # socketio相关代码end
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', debug=True)
