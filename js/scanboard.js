@@ -72,7 +72,7 @@ $(function () {
 			}, 1);
 		}
 	}
-
+	var socket;
 	//--------------------------高德地图--------------------------------
 	AMapLoader.load({
 		"key": "1efbbfb20e6ada2251a3d62dd65f7bc0",              // 申请好的Web端开发者Key，首次调用 load 时必填
@@ -87,7 +87,7 @@ $(function () {
 		},
 	}).then((AMap) => {
 		// 建立和后台的socketio连接
-		var socket = io.connect("127.0.0.1:5000");
+		socket = io.connect("127.0.0.1:5000");
 		// 地图初始化
 		var myMap = new AMap.Map('myMap', {
 			resizeEnable: true,
@@ -155,10 +155,12 @@ $(function () {
 		}
 		var seqs = [];//存放从后端拉来的数据  预约单每辆车的路线
 		var stops;//存放从后端拉来的数据  预约单每个站点的人数
-		var lineArr = [];//存放路径,lineArr[0]代表第一辆车的路径集合
+		var lineArr = new Array();//存放路径,lineArr[0]代表第一辆车的路径集合
 		var ifHandle = true;// ifHandle表示是否处理了响应
 		// 互斥锁机制，避免重新规划线路后要等待下车却没有的问题（开启了新线程，之前的动画并没有取消，所以会执行两次，导致setTimeout不起作用）
 		var waiting = [false, false, false, false, false];
+		// carAtStop接口重复调用bug，设置锁，到站了就锁住，出站了再释放
+		var carAtStopLock = [false, false, false, false, false];
 		// 设置信息窗体样式（车辆到站后显示的内容）
 		// var infoWindow = [];
 		// for (var i = 0; i < 8; i++) {
@@ -231,13 +233,18 @@ $(function () {
 								// 	result.routes[0].steps[i].path[j].lng,
 								// 	result.routes[0].steps[i].path[j].lat,
 								// ];
-								lineArr[lineArr_index].push([
+								lineArr[lineArr_index].push(new Array(
 									result.routes[0].steps[i].path[j].lng,
 									result.routes[0].steps[i].path[j].lat,
-								]);
+								));
 							}
 						}
 						lineArr[lineArr_index].push(end);
+						// 把涉及到的路网数据发送给后端
+						socket.emit("route", lineArr)
+						socket.on("route", (res) => {
+							console.log(res);
+						})
 					} else {
 						console.log("获取数据失败");
 					}
@@ -271,7 +278,7 @@ $(function () {
 			AMap.plugin('AMap.MoveAnimation', function () {
 				setTimeout(() => {//解决异步同步问题
 					carMarker[lineArr_index].moveAlong(lineArr[lineArr_index], {
-						speed: 1200
+						speed: 800
 					});
 					//备份middle和end数据
 					var midIds = deepClone(middle, midIds);
@@ -281,13 +288,13 @@ $(function () {
 						middle[i] = stopLngLat[middle[i]];
 					}
 					end = stopLngLat[end];
-					var count1 = 0// 解决在某个站点一直徘徊的问题
+					// var count1 = 0// 解决在某个站点一直徘徊的问题
 					var isPassedLast = false;// 是否已经走过了除了0的最后一站，避免刚开始就判断到车到终点的bug
 					var count2 = 0;// 解决socket持续发送的问题
 					carMarker[lineArr_index].on("moving", function (e) {
 						count2++;
 						// 通过socketio给后台公交车的数据
-						if (count2 % 20 == 0) {
+						if (count2 % 3 == 0) {
 							socket.emit('bus_pos', { bus_index: lineArr_index, pos: e.pos });
 						}
 						var i;
@@ -297,9 +304,14 @@ $(function () {
 								e.pos.lng >= middle[i][0] - 0.0005 &&
 								e.pos.lat <= middle[i][1] + 0.0005 &&
 								e.pos.lat >= middle[i][1] - 0.0005 &&
-								count1 == i
+								// count1 == i&&
+								!carAtStopLock[lineArr_index]
 							) {
-								count1++;
+								carAtStopLock[lineArr_index] = true;
+								// console.log(i);
+								// console.log(count1);
+								console.log("S" + (lineArr_index + 1) + "位置在" + stopName[midIds[i]] + " 站附近，调用了carAtStop接口");
+								// count1++;
 								carMarker[lineArr_index].pauseMove();
 								// 车到站，更新下一站显示
 								if (i != middle.length - 1) {
@@ -334,6 +346,18 @@ $(function () {
 										off_num = parseInt(res[3]);
 										// 该辆车的路径发生了改变
 										newPath = JSON.parse(res[1]);
+
+										$.when().done(function () {
+											// 车到站，将seqs减少
+											seqs.shift();//删除首元素
+										}).done(function () {
+											console.log("S" + (lineArr_index + 1) + "carAtStop接口拿到的新路径" + newPath);
+											console.log("S" + (lineArr_index + 1) + "之前的路径seqs：" + seqs.toString());
+										});
+										console.log("~~~~");
+										console.log(newPath.toString() !== seqs.toString());
+										console.log(ifHandle);
+										console.log("~~~~");
 										if (newPath.toString() !== seqs.toString() && !ifHandle) {
 											console.log("S" + (lineArr_index + 1) + "车进入路径变化函数执行范围！");
 											handleResponse(sumNum, newPath, lineArr_index);
@@ -351,8 +375,10 @@ $(function () {
 									setTimeout(function () {
 										carMarker[lineArr_index].resumeMove();
 										waiting[lineArr_index] = false;
+										setTimeout(() => { carAtStopLock[lineArr_index] = false; }, 2000);//车辆再次跑起来后的2s后才释放锁
 									}, 1000 * sumNum);//每个人按1s计算
 								}
+								break;
 							}
 						}
 						// 车到终点
@@ -361,8 +387,10 @@ $(function () {
 							e.pos.lng <= end[0] + 0.0005 &&
 							e.pos.lng >= end[0] - 0.0005 &&
 							e.pos.lat <= end[1] + 0.0005 &&
-							e.pos.lat >= end[1] - 0.0005
+							e.pos.lat >= end[1] - 0.0005 &&
+							!carAtStopLock[lineArr_index]
 						) {
+							carAtStopLock[lineArr_index] = true;
 							var sumNum = 0;
 							var on_num = 0;
 							var off_num = 0;
@@ -382,10 +410,13 @@ $(function () {
 									on_num = parseInt(res[2]);
 									off_num = parseInt(res[3]);
 									// 该辆车的路径发生了改变
-									newPath = JSON.parse(res[1]);
-									if (newPath.toString() !== seqs.toString() && !ifHandle) {
-										handleResponse(sumNum, newPath, lineArr_index);
-									}
+									console.log('S' + (lineArr_index + 1) + "车到终点了");
+									console.log(res);
+									console.log(res[1]);
+									// newPath = JSON.parse(res[1]);
+									// if (newPath.toString() !== seqs.toString() && !ifHandle) {
+									// 	handleResponse(sumNum, newPath, lineArr_index);
+									// }
 								}
 							});
 							$.growl.notice({
@@ -393,6 +424,7 @@ $(function () {
 								message: "上车" + on_num + "人，下车" + off_num + "人，上下车中......"
 							});
 							console.log("S" + (lineArr_index + 1) + "车，上下乘客共" + sumNum + "人，上下车中......");
+							setTimeout(() => { carAtStopLock[lineArr_index] = false; }, 2000);//车辆再次跑起来后的2s后才释放锁
 						}
 					});
 				}, 1000);
@@ -401,6 +433,7 @@ $(function () {
 		}
 		// 让第index(从0开始)辆车跑起来,路线是seqs
 		function startDriving(index, seqss) {
+			// if(localStorage.getItem('ifAddedByApp')===1)return;
 			// 先把Marker加入地图
 			myMap.add(carMarker[index]);
 			// 计算路径并开始动画
@@ -425,7 +458,7 @@ $(function () {
 			}, 1000 * sumNum);
 		}
 		//尝试5辆车一起跑，just run it!
-		function test5cars() {
+		async function test5cars() {
 			$.ajax({
 				url: "http://127.0.0.1:5000/getSeqs", async: false, success: function (res) {
 					seqs = res.seqs;
@@ -437,10 +470,25 @@ $(function () {
 			for (var i = 0; i < car_num; i++) {
 				startDriving(i, seqs[i]);
 			}
+			
+			// await socket.emit("route", lineArr)
+			// socket.on("route", (res) => {
+			// 	console.log(res);
+			// })
+
+			// await $.ajax({
+			// 	url: "http://127.0.0.1:5000/postRoute", async: true, data: {
+			// 	  lineArr,
+			// 	},
+			// 	dataType: "JSON", success: function (res) {
+			// 		console.log(res);
+			// 	}
+			// });
 			// 更新右上在驶车辆数
 			$('.infoPie ul #indicator1').text(car_num);
 		}
 		test5cars();
+		// localStorage.setItem('ifAddedByApp',0);
 		// 实现不同html页面通信：监听localstorage变化，增加响应触发站点闪烁
 		window.addEventListener('storage', function (e) {
 			if (e.key === 'addOrder') {
@@ -468,11 +516,12 @@ $(function () {
 					$.ajax({
 						url: "http://127.0.0.1:5000/addOrder",
 						data: {
-							stop_on: localStorage.getItem('stop_on'),
-							stop_off: localStorage.getItem('stop_off'),
+							stop_on: stopName[localStorage.getItem('stop_on')],
+							stop_off: stopName[localStorage.getItem('stop_off')],
 							passengers: localStorage.getItem('passengers'),
-							onBusPass_num: onBusPass_nums.toString(),
-							nextStopIds: nextStopIds.toString()
+							expected_on: "选择 时间段"
+							// onBusPass_num: onBusPass_nums.toString(),
+							// nextStopIds: nextStopIds.toString()
 						},
 						dataType: "JSON",
 						async: false,
@@ -497,6 +546,110 @@ $(function () {
 				}
 			}
 		});
+		// 之前放在外面的setInterval
+		var tmpso = 1;
+		setInterval(function () {
+			var arr = [];
+			$.ajax({
+				url: "http://127.0.0.1:5000/getOrderInfo",
+				async: false,
+				dataType: "json",
+				success: function (res) {
+					console.log("调了getOrderInfo接口");
+					arr = res;
+					// 监听socket
+					// app发送新增订单通知后端，后端在addOrder后将res返回给前端
+					if (tmpso === 1) {
+						socket.emit("refresh_path")
+						socket.on("refresh_path", (res) => {
+							// console.log("ifhandle",ifHandle);
+							tmpso = 2;
+							ifHandle = false;
+							res[3] = stopName.findIndex((name) => {
+								return name == res[3]
+							})
+							startGlitter(res[3]);
+							var nowDrivingCarNum = $('.infoPie ul #indicator1').text();
+							if (res[0] + 1 > nowDrivingCarNum) {//新派一辆车
+								// 做出路线改变的提醒
+								$.growl.warning({
+									title: "新派车辆提醒",
+									message: "新增响应，S" + (res[0] + 1) + "号车已派出运营!"
+								});
+								startDriving(res[0], res[1]);
+								$('.infoPie ul #indicator1').text(res[0] + 1);
+								ifHandle = true;
+								// localStorage.setItem('ifAddedByApp',1);
+							}
+						})
+					}
+
+				}
+			});
+			$("#FontScroll ul").empty();
+			// console.log(arr);
+			// console.log(arr[0][4] == 0 ? "(等待中)" : "(已上车)");
+			var temp = "";
+			for (var i = 0; i < arr.length; i++) {
+				temp = arr[i][8] + (arr[i][6] == 0 ? "(等待中)" : "(已上车)")
+				var addHtml = "<li><div class='fontInner clearfix'>"
+				addHtml += "<span>" + arr[i][0] + "</span>"
+				addHtml += "<span>" + arr[i][3] + "</span>"
+				addHtml += "<span>" + arr[i][4] + "</span>"
+				addHtml += "<span>" + temp + "</span>"
+				addHtml += "</div></li>"
+				$('#FontScroll ul').append(addHtml)
+			}
+			// 同时修改 右中当前订单数
+			$('.infoPie ul #indicator3').text(arr.length);
+			// 同时修改 左下站点的等待人数 和 左中车上人数
+			$.ajax({
+				url: "http://127.0.0.1:5000/getStopWaitingNum",
+				async: false,
+				dataType: "json",
+				success: function (res) {
+					// console.log(res);
+					var cnt = 0;
+					$('#stopWaitingNum ul li span strong').each(function () {
+						$(this).text(res[0][cnt]);
+						cnt++;
+					})
+					cnt = 0;
+					$('#busPassengersNum ul li span strong').each(function () {
+						$(this).text(res[1][cnt]);
+						cnt++;
+					})
+				}
+			});
+			// 同时修改左上历史订单数
+			var reserved_num = 0;
+			var response_num = 0;
+			var todayCompletedOrderNum = 0;
+			$.ajax({
+				url: "http://127.0.0.1:5000/getHistoryOrder",
+				async: false,
+				dataType: "json",
+				success: function (res) {
+					reserved_num = res[0];
+					response_num = res[1];
+					todayCompletedOrderNum = res[2];
+				}
+			});
+			var reserved_percent = Math.round(reserved_num / (reserved_num + response_num) * 100) + "%";
+			var response_percent = Math.round(response_num / (reserved_num + response_num) * 100) + "%";
+			$('#totalOrderNum h4').eq(0).text(reserved_percent);
+			$('#totalOrderNum h4').eq(1).text(response_percent);
+			$('#totalOrderNum .progress').find('.progressBar span').eq(0)
+				.animate({ width: reserved_percent }, parseInt(reserved_percent) * 50);
+			$('#totalOrderNum .progress').find('.progressBar span').eq(1)
+				.animate({ width: response_percent }, parseInt(response_percent) * 50);
+			$('#totalOrderNum i').eq(0).text(reserved_num + "单");
+			$('#totalOrderNum i').eq(1).text(response_num + "单");
+			// 修改右上总订单数
+			$('#totalNum').text(reserved_num + response_num);
+			// 修改右中当前已完成订单数
+			$('.infoPie ul #indicator2').text(todayCompletedOrderNum);
+		}, 5000);
 	}).catch((e) => {
 		console.error(e);  //加载错误提示
 	});
@@ -577,80 +730,8 @@ $(function () {
 	// }
 
 	// 订单状态数据源问题    每5秒请求一次数据库订单数据，更新面板上的数据信息
-	setInterval(function () {
-		var arr = [];
-		$.ajax({
-			url: "http://127.0.0.1:5000/getOrderInfo",
-			async: false,
-			dataType: "json",
-			success: function (res) {
-				arr = res;
-			}
-		});
-		$("#FontScroll ul").empty();
-		// console.log(arr);
-		// console.log(arr[0][4] == 0 ? "(等待中)" : "(已上车)");
-		var temp = "";
-		for (var i = 0; i < arr.length; i++) {
-			temp = arr[i][8] + (arr[i][6] == 0 ? "(等待中)" : "(已上车)")
-			var addHtml = "<li><div class='fontInner clearfix'>"
-			addHtml += "<span>" + arr[i][0] + "</span>"
-			addHtml += "<span>" + arr[i][3] + "</span>"
-			addHtml += "<span>" + arr[i][4] + "</span>"
-			addHtml += "<span>" + temp + "</span>"
-			addHtml += "</div></li>"
-			$('#FontScroll ul').append(addHtml)
-		}
-		// 同时修改 右中当前订单数
-		$('.infoPie ul #indicator3').text(arr.length);
-		// 同时修改 左下站点的等待人数 和 左中车上人数
-		$.ajax({
-			url: "http://127.0.0.1:5000/getStopWaitingNum",
-			async: false,
-			dataType: "json",
-			success: function (res) {
-				// console.log(res);
-				var cnt = 0;
-				$('#stopWaitingNum ul li span strong').each(function () {
-					$(this).text(res[0][cnt]);
-					cnt++;
-				})
-				cnt = 0;
-				$('#busPassengersNum ul li span strong').each(function () {
-					$(this).text(res[1][cnt]);
-					cnt++;
-				})
-			}
-		});
-		// 同时修改左上历史订单数
-		var reserved_num = 0;
-		var response_num = 0;
-		var todayCompletedOrderNum = 0;
-		$.ajax({
-			url: "http://127.0.0.1:5000/getHistoryOrder",
-			async: false,
-			dataType: "json",
-			success: function (res) {
-				reserved_num = res[0];
-				response_num = res[1];
-				todayCompletedOrderNum = res[2];
-			}
-		});
-		var reserved_percent = Math.round(reserved_num / (reserved_num + response_num) * 100) + "%";
-		var response_percent = Math.round(response_num / (reserved_num + response_num) * 100) + "%";
-		$('#totalOrderNum h4').eq(0).text(reserved_percent);
-		$('#totalOrderNum h4').eq(1).text(response_percent);
-		$('#totalOrderNum .progress').find('.progressBar span').eq(0)
-			.animate({ width: reserved_percent }, parseInt(reserved_percent) * 50);
-		$('#totalOrderNum .progress').find('.progressBar span').eq(1)
-			.animate({ width: response_percent }, parseInt(response_percent) * 50);
-		$('#totalOrderNum i').eq(0).text(reserved_num + "单");
-		$('#totalOrderNum i').eq(1).text(response_num + "单");
-		// 修改右上总订单数
-		$('#totalNum').text(reserved_num + response_num);
-		// 修改右中当前已完成订单数
-		$('.infoPie ul #indicator2').text(todayCompletedOrderNum);
-	}, 5000);
+	// 防止socket多次导致重复app的addOrder
+
 
 	// 订单状态文字滚动
 	$('#FontScroll').FontScroll({ time: 3000, num: 1 });
@@ -732,22 +813,22 @@ $(function () {
 			title: {
 				x: 'center',
 				y: pieData.pieTop,
-				text: '司机',
+				text: '订单',
 				textStyle: {
 					fontWeight: 'normal',
 					color: '#ffd325',
 					fontSize: pieData.titleSize,
 				},
-				subtext: '总数：100人\n今日工作：25人',
+				subtext: '预约单占比:75%\n响应单占比25%',
 				subtextStyle: {
 					color: '#fff',
 				}
 			},
 			tooltip: {
-				show: false,
+				show: true,
 			},
 			toolbox: {
-				show: false,
+				show: true,
 			},
 
 			series: [{
@@ -813,16 +894,16 @@ $(function () {
 					color: '#32ffc7',
 					fontSize: pieData.titleSize
 				},
-				subtext: '总数：100辆\n今日工作：75辆人',
+				subtext: '空载率:7%\n满载率:23%',
 				subtextStyle: {
 					color: '#fff',
 				}
 			},
 			tooltip: {
-				show: false,
+				show: true,
 			},
 			toolbox: {
-				show: false,
+				show: true,
 			},
 
 			series: [{
@@ -832,7 +913,7 @@ $(function () {
 				hoverAnimation: false,
 				center: ['50%', '50%'],
 				data: [{
-					value: 75,
+					value: 7,
 					label: {
 						normal: {
 							formatter: '{d}%',
@@ -853,7 +934,28 @@ $(function () {
 						}
 					}
 				}, {
-					value: 25,
+					value: 23,
+					label: {
+						normal: {
+							formatter: '{d}%',
+							position: 'outside',
+							show: true,
+							textStyle: {
+								fontSize: pieData.itemSize,
+								fontWeight: 'normal',
+								color: '#bbd325'
+							}
+						}
+					},
+					itemStyle: {
+						normal: {
+							color: '#bbd325',
+							shadowColor: '#bbd325',
+							shadowBlur: 10
+						}
+					}
+				}, {
+					value: 70,
 					name: '未工作',
 					itemStyle: {
 						normal: {
@@ -881,23 +983,23 @@ $(function () {
 		var pieOption3 = {
 			title: {
 				x: 'center',
-				y: pieData.pieTop2,
-				text: '运单',
+				y: pieData.pieTop,
+				text: '乘客',
 				textStyle: {
 					fontWeight: 'normal',
 					color: '#1eb6fe',
 					fontSize: pieData.titleSize
 				},
-				subtext: '总数：100单\n正常单：50单\n异常单：50单',
+				subtext: '等时5min以内:32%\n等时10min以内:43%\n等时20min以内:24%',
 				subtextStyle: {
 					color: '#fff',
 				}
 			},
 			tooltip: {
-				show: false,
+				show: true,
 			},
 			toolbox: {
-				show: false,
+				show: true,
 			},
 
 			series: [{
@@ -907,7 +1009,7 @@ $(function () {
 				hoverAnimation: false,
 				center: ['50%', '50%'],
 				data: [{
-					value: 50,
+					value: 32,
 					label: {
 						normal: {
 							formatter: '{d}%',
@@ -916,19 +1018,61 @@ $(function () {
 							textStyle: {
 								fontSize: pieData.itemSize,
 								fontWeight: 'normal',
-								color: '#1eb6fe'
+								color: '#007BFF'
 							}
 						}
 					},
 					itemStyle: {
 						normal: {
-							color: '#1eb6fe',
-							shadowColor: '#1eb6fe',
+							color: '#007BFF',
+							shadowColor: '#007BFF',
 							shadowBlur: 10
 						}
 					}
 				}, {
-					value: 50,
+					value: 43,
+					label: {
+						normal: {
+							formatter: '{d}%',
+							position: 'outside',
+							show: true,
+							textStyle: {
+								fontSize: pieData.itemSize,
+								fontWeight: 'normal',
+								color: '#008BD6'
+							}
+						}
+					},
+					itemStyle: {
+						normal: {
+							color: '#008BD6',
+							shadowColor: '#008BD6',
+							shadowBlur: 10
+						}
+					}
+				}, {
+					value: 24,
+					label: {
+						normal: {
+							formatter: '{d}%',
+							position: 'outside',
+							show: true,
+							textStyle: {
+								fontSize: pieData.itemSize,
+								fontWeight: 'normal',
+								color: '#99CCFF'
+							}
+						}
+					},
+					itemStyle: {
+						normal: {
+							color: '#99CCFF',
+							shadowColor: '#99CCFF',
+							shadowBlur: 10
+						}
+					}
+				}, {
+					value: 1,
 					name: '未工作',
 					itemStyle: {
 						normal: {
@@ -973,7 +1117,7 @@ $(function () {
 				containLabel: true
 			},
 			xAxis: {
-				data: ['美的南沙分厂', '美的商业空调事业部', '佛山信华'],
+				data: ['S1', 'S2', 'S3'],
 				axisLabel: {
 					show: true,
 					textStyle: {
