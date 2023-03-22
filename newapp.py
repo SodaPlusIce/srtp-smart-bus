@@ -14,7 +14,7 @@ import redis
 
 app = Flask(__name__)
 CORS(app, resources=r'/*')  # 注册CORS, "/*" 允许访问所有api
-redis_pool = redis.ConnectionPool(host='192.168.203.129', port=6379, password='000415', db=1)
+redis_pool = redis.ConnectionPool(host='127.0.0.1', port=6379, db=1)
 redis_conn = redis.Redis(connection_pool=redis_pool)
 # 打开数据库连接
 db = pymysql.connect(host='localhost',
@@ -230,7 +230,7 @@ def getSequences():
                 # 最后回到换乘中心0，所有订单完成
                 sql = "INSERT INTO order_info(order_id,order_type,date,stop_on,stop_off,phone,status,passengers," \
                       "allo_bus,expected_on,created_time,onbus_time)" \
-                      " VALUES ('{0}','0','{1}','{2}','换乘中心','123456789','0','{3}','{4}','0730','{5}','');" \
+                      " VALUES ('{0}','1','{1}','{2}','换乘中心','123456789','0','{3}','{4}','0730','{5}','');" \
                     .format(order_id, date, stopName[path_stop], passes, "S" + str(curr_car), yesterday)
                 cursor.execute(sql)
                 db.commit()
@@ -503,8 +503,9 @@ def addOrder():
         .format(order_id, date, stop_on, stop_off, passengers, allo_bus, expected_on,nowtime)
     cursor.execute(sql)
     db.commit()
-    print(res)
+    # print(res)
     global socketPath
+    res.append(stop_on)
     socketPath=res;
     return make_response(json.dumps(res))
 
@@ -518,12 +519,12 @@ def getRoute(route):
 
 @app.route("/routeInitial")
 def returnRoute():
-    print(route_app)
+    # print(route_app)
     return make_response(json.dumps(route_app))
 @app.route("/postRoute")
 def getRoute():
     route=request.values.to_dict()
-    print(route)
+    # print(route)
     return "xxx"
 ### 获取每位乘客的等待时间
 @app.route("/waitingTime")
@@ -606,12 +607,16 @@ def login():
 # 接收中央大屏传来的bus位置，先全初始化为起点坐标
 bus_pos=[[120.265966, 30.721857],[120.265966, 30.721857],[120.265966, 30.721857],
          [120.265966, 30.721857],[120.265966, 30.721857]]
+global cntt
+cntt=1
 # bus_pos=dict()
 # socketio相关代码start
 @socketio.on("refresh_path")
 def returnAddPath():
-    if socketPath:
-     emit('refresh_path',socketPath)
+    global cntt
+    if socketPath and cntt == 1:
+        cntt=2
+        emit('refresh_path',socketPath)
 @socketio.on('connect')
 def test_connect():
     print('socket connected, this is server')
@@ -636,6 +641,11 @@ def returnBusPos():
     global bus_pos
     # print(bus_pos)
     emit('app_pos',bus_pos)
+@socketio.on('app_pos_driver')
+def returnBusPos():
+    global bus_pos
+    # print(bus_pos)
+    emit('app_pos_driver',bus_pos)
 @socketio.on('driver_info')
 def returnDriver():
     onbus_num=int(redis_conn.get('P1').decode())
